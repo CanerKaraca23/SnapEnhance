@@ -84,7 +84,6 @@ class FeatureManager(
             AppLock(),
             CameraTweaks(),
             InfiniteStoryBoost(),
-            AmoledDarkMode(),
             PinConversations(),
             DeviceSpooferHook(),
             ClientBootstrapOverride(),
@@ -120,6 +119,7 @@ class FeatureManager(
             AccountSwitcher(),
             RemoveGroupsLockedStatus(),
             BypassMessageActionRestrictions(),
+            CustomizeUI(),
             BetterLocation(),
             MediaFilePicker(),
             HideActiveMusic(),
@@ -128,7 +128,6 @@ class FeatureManager(
             ComposerHooks(),
             DisableCustomTabs(),
         )
-
         initializeFeatures()
     }
 
