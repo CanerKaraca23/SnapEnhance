@@ -1059,6 +1059,7 @@
                 "abandon_video": "Missed Video Call"
             },
             "gallery_media_send_override": {
+                "always_ask": "Always Ask",
                 "ORIGINAL": "Original",
                 "NOTE": "Audio Note",
                 "SNAP": "Snap",
