@@ -29,8 +29,6 @@ bool JNICALL init(JNIEnv *env, jobject clazz) {
 
     LOGD("client_module offset=0x%lx, size=0x%zx", client_module.base, client_module.size);
 
-    util::remap_sections(BUILD_PACKAGE);
-
     UnaryCallHook::init(env);
     FstatHook::init();
     SqliteMutexHook::init();
@@ -86,5 +84,6 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *_) {
     methods.push_back({"composerEval", "(Ljava/lang/String;)Ljava/lang/String;",(void *) ComposerHook::composerEval});
 
     env->RegisterNatives(env->FindClass(std::string(BUILD_NAMESPACE "/NativeLib").c_str()), methods.data(), methods.size());
+    util::remap_sections(BUILD_PACKAGE);
     return JNI_VERSION_1_6;
 }

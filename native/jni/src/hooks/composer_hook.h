@@ -91,12 +91,12 @@ namespace ComposerHook {
         JSValue global_var_obj;
     };
 
-    static uintptr_t global_instance;
+    static void* global_instance;
     static JSContext *global_ctx;
     static std::string* composer_loader;
 
-    HOOK_DEF(JSValue, js_eval, uintptr_t instance, JSContext *ctx, uintptr_t this_obj, char *input, uintptr_t input_len, const char *filename, unsigned int flags, unsigned int scope_idx) {
-        if (global_instance == 0 || global_ctx == nullptr) {
+    HOOK_DEF(JSValue, js_eval, void* instance, JSContext *ctx, void* this_obj, char *input, uintptr_t input_len, const char *filename, unsigned int flags, unsigned int scope_idx) {
+        if (global_instance == nullptr || global_ctx == nullptr) {
             global_instance = instance;
             global_ctx = ctx;
 
@@ -118,6 +118,8 @@ namespace ComposerHook {
     }
 
     void setComposerLoader(JNIEnv *env, jobject, jstring code) {
+        global_instance = nullptr;
+        global_ctx = nullptr;
         auto code_str = env->GetStringUTFChars(code, nullptr);
         composer_loader = new std::string(code_str, env->GetStringUTFLength(code));
         env->ReleaseStringUTFChars(code, code_str);
@@ -131,7 +133,7 @@ namespace ComposerHook {
 
         auto script_str = env->GetStringUTFChars(script, nullptr);
         auto length = env->GetStringUTFLength(script);
-        auto jsvalue = js_eval_original(global_instance, global_ctx, (uintptr_t) &global_ctx->global_obj, (char *) script_str, length, "<eval>", 0, 0);
+        auto jsvalue = js_eval_original(global_instance, global_ctx, (void*) &global_ctx->global_obj, (char *) script_str, length, "<eval>", 0, 0);
         env->ReleaseStringUTFChars(script, script_str);
 
         if (jsvalue.tag == JS_TAG_STRING) {
