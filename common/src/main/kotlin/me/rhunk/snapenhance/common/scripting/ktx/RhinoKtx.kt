@@ -1,15 +1,20 @@
 package me.rhunk.snapenhance.common.scripting.ktx
 
+import com.faendir.rhino_android.RhinoAndroidHelper
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.Function
 import org.mozilla.javascript.Scriptable
 import org.mozilla.javascript.ScriptableObject
 import org.mozilla.javascript.Wrapper
+import java.io.File
 
-fun contextScope(f: Context.() -> Any?): Any? {
-    val context = Context.enter()
-    context.optimizationLevel = -1
-    context.languageVersion = Context.VERSION_ES6
+private val rhinoAndroidHelper = RhinoAndroidHelper(null as File?)
+
+fun contextScope(shouldOptimize: Boolean = false, f: Context.() -> Any?): Any? {
+    val context = rhinoAndroidHelper.enterContext().apply {
+        languageVersion = Context.VERSION_ES6
+        optimizationLevel = if (!shouldOptimize) -1 else 0
+    }
     try {
         return context.f().let {
             if (it is Wrapper) {

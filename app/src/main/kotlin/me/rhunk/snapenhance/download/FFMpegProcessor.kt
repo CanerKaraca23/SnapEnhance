@@ -115,7 +115,7 @@ class FFMpegProcessor(
         // load ffmpeg native sync to avoid native crash
         synchronized(this) { FFmpegKit.listSessions() }
         val globalArguments = ArgumentList().apply {
-            this += "-hwaccel mediacodec" //Use hwaccel If Available
+            this += "-hwaccel ${if (ffmpegOptions.customVideoCodec.get().isNotEmpty()) "auto" else "mediacodec"}" //Use hwaccel If Available
             this += "-y"
             this += "-threads" to ffmpegOptions.threads.get().toString()
         }

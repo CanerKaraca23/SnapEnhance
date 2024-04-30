@@ -183,7 +183,9 @@ class JSModule(
                     else -> moduleBindings[bindingName]?.getObject()
                 }
             }
+        }
 
+        contextScope(shouldOptimize = true) {
             evaluateString(moduleObject, content, moduleInfo.name, 1, null)
         }
     }

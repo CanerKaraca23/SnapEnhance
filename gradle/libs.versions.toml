@@ -20,6 +20,7 @@ gson = "2.10.1"
 junit = "5.10.2"
 okhttp = "5.0.0-alpha.14"
 rhino = "1.7.14"
+rhino-android = "1.6.0"
 
 [libraries]
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -48,6 +49,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid-android" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 rhino = { module = "org.mozilla:rhino", version.ref = "rhino" }
+rhino-android = { group = "com.faendir.rhino", name = "rhino-android", version.ref = "rhino-android" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -45,6 +45,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.documentfile)
     implementation(libs.rhino)
+    implementation(libs.rhino.android) {
+        exclude(group = "org.mozilla", module = "rhino-runtime")
+    }
 
     compileOnly(libs.androidx.activity.ktx)
     compileOnly(platform(libs.androidx.compose.bom))

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.*
+import android.util.Log
 import de.robv.android.xposed.XposedHelpers
 import me.rhunk.snapenhance.bridge.AccountStorage
 import me.rhunk.snapenhance.bridge.BridgeInterface
@@ -108,6 +109,7 @@ class BridgeClient(
         return runCatching {
             block()
         }.getOrElse {
+            Log.e("SnapEnhance", "service call failed", it)
             if (it is DeadObjectException) {
                 context.softRestartApp()
             }
@@ -116,7 +118,11 @@ class BridgeClient(
     }
 
     fun broadcastLog(tag: String, level: String, message: String) {
-        safeServiceCall { service.broadcastLog(tag, level, message) }
+        message.chunked(1024 * 256).forEach {
+            safeServiceCall {
+                service.broadcastLog(tag, level, it)
+            }
+        }
     }
 
     //TODO: use interfaces instead of direct file access
