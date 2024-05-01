@@ -9,26 +9,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import me.rhunk.snapenhance.ui.setup.screens.SetupScreen
 import me.rhunk.snapenhance.ui.util.ActivityLauncherHelper
-import me.rhunk.snapenhance.ui.util.ObservableMutableState
 import me.rhunk.snapenhance.ui.util.chooseFolder
 
 class SaveFolderScreen : SetupScreen() {
-    private lateinit var saveFolder: ObservableMutableState<String>
-
     private lateinit var activityLauncherHelper: ActivityLauncherHelper
 
     override fun init() {
         activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
-        saveFolder = ObservableMutableState(
-                defaultValue = "",
-                onChange = { _, newValue ->
-                    if (newValue.isNotBlank()) {
-                        context.config.root.downloader.saveFolder.set(newValue)
-                        context.config.writeConfig()
-                        allowNext(true)
-                    }
-                }
-            )
     }
 
     @Composable
@@ -37,7 +24,10 @@ class SaveFolderScreen : SetupScreen() {
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = {
             activityLauncherHelper.chooseFolder {
-                saveFolder.value = it
+                if (it.isBlank()) return@chooseFolder
+                context.config.root.downloader.saveFolder.set(it)
+                context.config.writeConfig()
+                goNext()
             }
         }) {
             Text(text = context.translation["setup.dialogs.select_save_folder_button"])

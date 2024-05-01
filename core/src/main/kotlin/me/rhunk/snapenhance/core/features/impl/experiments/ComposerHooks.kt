@@ -1,5 +1,6 @@
 package me.rhunk.snapenhance.core.features.impl.experiments
 
+import android.os.ParcelFileDescriptor
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -186,7 +187,11 @@ class ComposerHooks: Feature("ComposerHooks", loadParams = FeatureLoadParams.ACT
     }
 
     private fun loadHooks() {
-        val loaderScript = context.scriptRuntime.scripting.getScriptContent("composer/loader.js") ?: run {
+        val loaderScript = context.scriptRuntime.scripting.getScriptContent("composer/loader.js")?.let { pfd ->
+            ParcelFileDescriptor.AutoCloseInputStream(pfd).use {
+                it.readBytes().toString(Charsets.UTF_8)
+            }
+        } ?: run {
             context.log.error("Failed to load composer loader script")
             return
         }

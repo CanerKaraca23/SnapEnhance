@@ -6,11 +6,9 @@
             "select_save_folder_button": "Select Folder"
         },
         "mappings": {
-            "dialog": "To dynamically support a wide range of Snapchat Versions, mappings are necessary for SnapEnhance to function properly, this should not take more than 5 seconds.",
-            "generate_button": "Generate",
+            "dialog": "Generating Mappings, this may take a while ...",
             "generate_failure_no_snapchat": "SnapEnhance was unable to detect Snapchat, please try reinstalling Snapchat.",
-            "generate_failure": "An error occurred while trying to generate mappings, please try again.",
-            "generate_success": "Mappings generated successfully."
+            "generate_failure": "An error occurred while trying to generate mappings, please try again."
         },
         "permissions": {
             "dialog": "To continue you need to fit the following requirements:",

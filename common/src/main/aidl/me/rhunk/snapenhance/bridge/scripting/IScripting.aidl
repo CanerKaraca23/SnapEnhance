@@ -6,7 +6,7 @@ import me.rhunk.snapenhance.bridge.scripting.AutoReloadListener;
 interface IScripting {
     List<String> getEnabledScripts();
 
-    @nullable String getScriptContent(String path);
+    @nullable ParcelFileDescriptor getScriptContent(String path);
 
     oneway void registerIPCListener(String channel, String eventName, IPCListener listener);
 

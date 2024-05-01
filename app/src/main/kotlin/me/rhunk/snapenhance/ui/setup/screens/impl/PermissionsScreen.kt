@@ -17,17 +17,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rhunk.snapenhance.ui.setup.screens.SetupScreen
 import me.rhunk.snapenhance.ui.util.ActivityLauncherHelper
+import me.rhunk.snapenhance.ui.util.OnLifecycleEvent
 
 data class PermissionData(
     val translationKey: String,
@@ -125,12 +124,26 @@ class PermissionsScreen : SetupScreen() {
             )
         }
 
-        allowNext(permissions.all { perm -> grantedPermissions[perm.translationKey] == true })
-
-        LaunchedEffect(Unit) {
+        fun updateState() {
             permissions.forEach { perm ->
                 grantedPermissions[perm.translationKey] = perm.isPermissionGranted()
             }
+            if (permissions.all { perm -> grantedPermissions[perm.translationKey] == true }) {
+                goNext()
+            }
+        }
+
+        OnLifecycleEvent { _, event ->
+            if (event != Lifecycle.Event.ON_RESUME) return@OnLifecycleEvent
+            updateState()
+            coroutineScope.launch {
+                delay(1000)
+                updateState()
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            updateState()
         }
 
         DialogText(text = context.translation["setup.permissions.dialog"])
@@ -156,7 +169,11 @@ class PermissionsScreen : SetupScreen() {
                             GrantedIcon()
                         } else {
                             RequestButton {
-                                perm.requestPermission(perm)
+                                if (perm.isPermissionGranted()) {
+                                    grantedPermissions[perm.translationKey] = true
+                                } else {
+                                    perm.requestPermission(perm)
+                                }
                             }
                         }
                     }

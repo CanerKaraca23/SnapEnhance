@@ -2,10 +2,8 @@ package me.rhunk.snapenhance.ui.setup.screens.impl
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,52 +26,38 @@ class MappingsScreen : SetupScreen() {
             }) {
                 remember { AlertDialogs(context.translation) }.InfoDialog(title = infoText!!) {
                     infoText = null
+                    goNext()
                 }
             }
         }
 
-        fun tryToGenerateMappings() {
-            //check for snapchat installation
-            val installationSummary = context.installationSummary
-            if (installationSummary.snapchatInfo == null) {
-                throw Exception(context.translation["setup.mappings.generate_failure_no_snapchat"])
-            }
-            with(context.mappings) {
-                refresh()
-            }
-        }
-
-        var hasMappings by remember { mutableStateOf(false) }
-
-        DialogText(text = context.translation["setup.mappings.dialog"])
-        if (hasMappings) return
-        Button(onClick = {
-            if (isGenerating) return@Button
-            isGenerating = true
+        LaunchedEffect(Unit) {
             coroutineScope.launch(Dispatchers.IO) {
+                if (isGenerating) return@launch
+                isGenerating = true
                 runCatching {
-                    tryToGenerateMappings()
-                    allowNext(true)
-                    infoText = context.translation["setup.mappings.generate_success"]
-                    hasMappings = true
+                    if (context.installationSummary.snapchatInfo == null) {
+                        throw Exception(context.translation["setup.mappings.generate_failure_no_snapchat"])
+                    }
+                    context.mappings.refresh()
+                    goNext()
                 }.onFailure {
                     isGenerating = false
                     infoText = context.translation["setup.mappings.generate_failure"] + "\n\n" + it.message
                     context.log.error("Failed to generate mappings", it)
                 }
             }
-        }) {
-            if (isGenerating) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding()
-                        .size(30.dp),
-                    strokeWidth = 3.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(text = context.translation["setup.mappings.generate_button"])
-            }
+        }
+
+        if (isGenerating) {
+            DialogText(text = context.translation["setup.mappings.dialog"])
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .padding()
+                    .size(50.dp),
+                strokeWidth = 3.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }

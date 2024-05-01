@@ -1,6 +1,8 @@
 package me.rhunk.snapenhance.scripting
 
+import android.annotation.SuppressLint
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.documentfile.provider.DocumentFile
 import me.rhunk.snapenhance.RemoteSideContext
 import me.rhunk.snapenhance.bridge.scripting.AutoReloadListener
@@ -11,6 +13,7 @@ import me.rhunk.snapenhance.common.scripting.bindings.BindingSide
 import me.rhunk.snapenhance.common.scripting.impl.ConfigInterface
 import me.rhunk.snapenhance.common.scripting.impl.ConfigTransactionType
 import me.rhunk.snapenhance.common.scripting.type.ModuleInfo
+import me.rhunk.snapenhance.core.util.ktx.toParcelFileDescriptor
 import me.rhunk.snapenhance.scripting.impl.IPCListeners
 import me.rhunk.snapenhance.scripting.impl.ManagerIPC
 import me.rhunk.snapenhance.scripting.impl.ManagerScriptConfig
@@ -49,8 +52,10 @@ class RemoteScriptManager(
         getScriptFileNames().forEach { name ->
             runCatching {
                 getScriptInputStream(name) { stream ->
-                    runtime.getModuleInfo(stream!!).also { info ->
-                        cachedModuleInfo[name] = info
+                    stream?.use {
+                        runtime.getModuleInfo(it).also { info ->
+                            cachedModuleInfo[name] = info
+                        }
                     }
                 }
             }.onFailure {
@@ -92,9 +97,10 @@ class RemoteScriptManager(
         runtime.unload(scriptPath)
     }
 
+    @SuppressLint("Recycle")
     private fun <R> getScriptInputStream(name: String, callback: (InputStream?) -> R): R {
         val file = getScriptsFolder()?.findFile(name) ?: return callback(null)
-        return context.androidContext.contentResolver.openInputStream(file.uri)?.use(callback) ?: callback(null)
+        return context.androidContext.contentResolver.openInputStream(file.uri)?.let(callback) ?: callback(null)
     }
 
     fun getModuleDataFolder(moduleFileName: String): File {
@@ -123,15 +129,14 @@ class RemoteScriptManager(
         }.getOrDefault(emptyList())
     }
 
-    override fun getScriptContent(moduleName: String): String? {
+    override fun getScriptContent(moduleName: String): ParcelFileDescriptor? {
         if (moduleName.startsWith("composer/")) {
             return runCatching {
-                context.androidContext.assets.open("composer/${moduleName.removePrefix("composer/")}").use {
-                    it.bufferedReader().readText()
-                }
+                context.androidContext.assets.open("composer/${moduleName.removePrefix("composer/")}")
+                    .toParcelFileDescriptor(context.coroutineScope)
             }.getOrNull()
         }
-        return getScriptInputStream(moduleName) { it?.bufferedReader()?.readText() }
+        return getScriptInputStream(moduleName) { it?.toParcelFileDescriptor(context.coroutineScope) }
     }
 
     override fun registerIPCListener(channel: String, eventName: String, listener: IPCListener) {

@@ -2,6 +2,7 @@
 #include <string>
 #include <dobby.h>
 #include <vector>
+#include <thread>
 
 #include "logger.h"
 #include "common.h"
@@ -29,12 +30,20 @@ bool JNICALL init(JNIEnv *env, jobject clazz) {
 
     LOGD("client_module offset=0x%lx, size=0x%zx", client_module.base, client_module.size);
 
-    UnaryCallHook::init(env);
-    FstatHook::init();
-    SqliteMutexHook::init();
-    DuplexHook::init(env);
+    auto threads = std::vector<std::thread>();
+
+    #define RUN(body) threads.push_back(std::thread([&] { body; }))
+
+    RUN(UnaryCallHook::init(env));
+    RUN(FstatHook::init());
+    RUN(SqliteMutexHook::init());
+    RUN(DuplexHook::init(env));
     if (common::native_config->composer_hooks) {
-        ComposerHook::init();
+        RUN(ComposerHook::init());
+    }
+
+    for (auto &thread : threads) {
+        thread.join();
     }
 
     LOGD("Native initialized");

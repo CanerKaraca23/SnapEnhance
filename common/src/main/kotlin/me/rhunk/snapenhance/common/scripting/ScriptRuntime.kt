@@ -1,6 +1,7 @@
 package me.rhunk.snapenhance.common.scripting
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import me.rhunk.snapenhance.bridge.scripting.IScripting
 import me.rhunk.snapenhance.common.logger.AbstractLogger
 import me.rhunk.snapenhance.common.scripting.type.ModuleInfo
@@ -78,6 +79,12 @@ open class ScriptRuntime(
         logger.info("Unloading module $scriptPath")
         module.unload()
         modules.remove(scriptPath)
+    }
+
+    fun load(scriptPath: String, pfd: ParcelFileDescriptor) {
+        load(scriptPath, ParcelFileDescriptor.AutoCloseInputStream(pfd).use {
+            it.readBytes().toString(Charsets.UTF_8)
+        })
     }
 
     fun load(scriptPath: String, content: String): JSModule? {

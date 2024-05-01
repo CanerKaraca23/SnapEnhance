@@ -11,7 +11,7 @@ import me.rhunk.snapenhance.RemoteSideContext
 
 abstract class SetupScreen {
     lateinit var context: RemoteSideContext
-    lateinit var allowNext: (Boolean) -> Unit
+    lateinit var allowNext: (canGoNext: Boolean) -> Unit
     lateinit var goNext: () -> Unit
     lateinit var route: String
 
