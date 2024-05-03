@@ -558,6 +558,10 @@
                         "name": "Call Start Confirmation",
                         "description": "Shows a confirmation dialog when starting a call"
                     },
+                    "unlimited_conversation_pinning": {
+                        "name": "Unlimited Conversation Pinning",
+                        "description": "Allows you to pin an unlimited amount of conversations locally"
+                    },
                     "prevent_message_sending": {
                         "name": "Prevent Message Sending",
                         "description": "Prevents sending certain types of messages"
