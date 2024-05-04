@@ -89,7 +89,6 @@ class DownloadProcessor (
 
     private fun newFFMpegProcessor(pendingTask: PendingTask) = FFMpegProcessor.newFFMpegProcessor(remoteSideContext, pendingTask)
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     suspend fun saveMediaToGallery(pendingTask: PendingTask, inputFile: File, metadata: DownloadMetadata) {
         if (coroutineContext.job.isCancelled) return
 
@@ -127,6 +126,34 @@ class DownloadProcessor (
                 } else {
                     outputFolder
                 }
+            }
+
+            // checks if the file already exists and if it does, compares its contents with the input file, if contents differ, deletes existing file.
+            outputFileFolder.findFile(fileName)?.let { existingFile ->
+                pendingTask.updateProgress("Comparing existing media")
+                remoteSideContext.androidContext.contentResolver.openInputStream(existingFile.uri)?.use { existingInputStream ->
+                    val buffer1 = ByteArray(1024 * 1024)
+                    val buffer2 = ByteArray(1024 * 1024)
+                    var read1: Int
+                    var read2: Int
+
+                    inputFile.inputStream().use { inputStream ->
+                        while (true) {
+                            read1 = inputStream.read(buffer1)
+                            read2 = existingInputStream.read(buffer2)
+                            if (read1 != read2 || !buffer1.contentEquals(buffer2)) {
+                                existingFile.delete()
+                                return@let
+                            }
+                            if (read1 == -1) break
+                        }
+                    }
+                }
+
+                pendingTask.task.extra = existingFile.uri.toString()
+                pendingTask.success()
+                callbackOnFailure(translation["already_downloaded_toast"])
+                return
             }
 
             val outputFile = outputFileFolder.createFile(fileType.mimeType, fileName)!!

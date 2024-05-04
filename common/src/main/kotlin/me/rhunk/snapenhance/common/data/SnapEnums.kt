@@ -16,16 +16,17 @@ enum class NotificationType (
     SCREEN_RECORD("chat_screen_record", true, ContentType.STATUS_CONVERSATION_CAPTURE_RECORD),
     CAMERA_ROLL_SAVE("camera_roll_save", true, ContentType.STATUS_SAVE_TO_CAMERA_ROLL),
     SNAP_REPLAY("snap_replay", true, ContentType.STATUS),
-    SNAP("snap",true),
-    CHAT("chat",true),
-    CHAT_REPLY("chat_reply",true),
+    SNAP("snap", true),
+    CHAT("chat", true),
+    CHAT_REPLY("chat_reply", true),
     TYPING("typing", true),
-    STORIES("stories",true),
+    STORIES("stories", true),
+    SPEAKING("speaking", true),
     DM_REACTION("chat_reaction", true, null,"snap_reaction", "voicenote_reaction"),
     GROUP_REACTION("group_chat_reaction", true, null,"group_snap_reaction", "group_voicenote_reaction"),
-    INITIATE_AUDIO("initiate_audio",true),
+    INITIATE_AUDIO("initiate_audio", true),
     ABANDON_AUDIO("abandon_audio", false, ContentType.STATUS_CALL_MISSED_AUDIO),
-    INITIATE_VIDEO("initiate_video",true),
+    INITIATE_VIDEO("initiate_video", true),
     ABANDON_VIDEO("abandon_video", false, ContentType.STATUS_CALL_MISSED_VIDEO);
 
     fun isMatch(key: String): Boolean {

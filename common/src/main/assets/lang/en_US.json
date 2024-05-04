@@ -387,6 +387,10 @@
                             "action_menu_round_background_color": {
                                 "name": "Action Menu Round Background Color",
                                 "description": "Changes Snapchats chat action menu round background color\nInput a hex color code"
+                            },
+                            "camera_grid_lines": {
+                                "name": "Camera Gridlines Color",
+                                "description": "Changes Snapchats Gridlines color on the Camera Preview \nInput a hex color code\nNote: Enable the grid on the my camera settings"
                             }
                         }
                     },
@@ -480,7 +484,7 @@
                     },
                     "message_indicators": {
                         "name": "Message Indicators",
-                        "description": "Adds specific indicators icons to messages\nNote: indicators might not be 100% accurate"
+                        "description": "Adds specific indicators icons to messages\nNote: Indicators might not be 100% accurate"
                     },
                     "stealth_mode_indicator": {
                         "name": "Stealth Mode Indicator",
@@ -904,7 +908,7 @@
                     },
                     "account_switcher": {
                         "name": "Account Switcher",
-                        "description": "Allows you to switch between accounts without logging out\nLong press on the search icon next to your Bitmoji profile to open the menu\nNote: this feature is experimental and will likely change in the future",
+                        "description": "Allows you to switch between accounts without logging out\nLong press on the search icon next to your Bitmoji profile to open the menu\nNote: This feature is experimental and will likely change in the future",
                         "properties": {
                             "auto_backup_current_account": {
                                 "name": "Auto Backup Current Account",
@@ -940,7 +944,7 @@
                     },
                     "best_friend_pinning": {
                         "name": "Best Friend Pinning",
-                        "description": "Allows you to pin a friend as your number one best friend. Note: only you can see your pinned best friend"
+                        "description": "Allows you to pin a friend as your number one best friend. Note: Only you can see your pinned best friend"
                     },
                     "e2ee": {
                         "name": "End-To-End Encryption",
@@ -1057,6 +1061,7 @@
                 "snap": "Snap",
                 "typing": "Typing",
                 "stories": "Stories",
+                "speaking": "Speaking",
                 "chat_reaction": "DM Reaction",
                 "group_chat_reaction": "Group Reaction",
                 "initiate_audio": "Incoming Audio Call",
