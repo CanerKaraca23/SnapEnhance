@@ -34,7 +34,7 @@ class UnsaveableMessages : MessagingRuleFeature(
                 event.buffer = ProtoEditor(event.buffer).apply {
                     edit(4) {
                         val contentType = firstOrNull(2)?.value
-                        if (contentType != ContentType.STATUS.id.toLong() && firstOrNull(4)?.toReader()?.contains(11) != true) {
+                        if (contentType != ContentType.STATUS.id.toLong() && firstOrNull(4)?.toReader()?.contains(11) != true && contentType != null) {
                             remove(7)
                             addVarInt(7, 3) // set savePolicy to VIEW_SESSION except for status and snaps
                         }

@@ -18,9 +18,13 @@ class UserInterfaceTweaks : ConfigContainer() {
         val amount = integer("amount", defaultValue = 1)
     }
 
-    inner class CustomizeUIConfig : ConfigContainer(hasGlobalState = true) {
+
+    class ColorsConfig : ConfigContainer() {
         val textColor = color("text_color")
-        val sendAndReceivedTextColor = color("send_and_received_text_color")
+        val chatChatTextColor = color("chat_chat_text_color")
+        val pendingSendingTextColor = color("pending_sending_text_color")
+        val snapWithSoundTextColor = color("snap_with_sound_text_color")
+        val snapWithoutSoundTextColor = color("snap_without_sound_text_color")
         val backgroundColor = color("background_color")
         val backgroundColorSurface = color("background_color_surface")
         val actionMenuBackgroundColor = color("action_menu_background_color")
@@ -28,12 +32,28 @@ class UserInterfaceTweaks : ConfigContainer() {
         val cameraGridLines = color("camera_grid_lines")
     }
 
+    inner class CustomizeUIConfig : ConfigContainer() {
+        val themePicker = unique("theme_picker",
+            "custom",
+            "amoled_dark_mode",
+            "light_blue",
+            "dark_blue",
+            "earthy_autumn",
+            "mint_chocolate",
+            "ginger_snap",
+            "lemon_meringue",
+            "lava_flow",
+            "ocean_fog",
+            "alien_landscape",
+        )
+        val colors = container("colors", ColorsConfig()) { requireRestart() }
+    }
+
     val friendFeedMenuButtons = multiple(
         "friend_feed_menu_buttons","conversation_info", "mark_snaps_as_seen", "mark_stories_as_seen_locally", *MessagingRuleType.entries.filter { it.showInFriendMenu }.map { it.key }.toTypedArray()
     ).apply {
         set(mutableListOf("conversation_info", MessagingRuleType.STEALTH.key))
     }
-    val amoledDarkMode = boolean("amoled_dark_mode") { requireRestart() }
     val customizeUi = container("customize_ui", CustomizeUIConfig()) { addNotices(FeatureNotice.UNSTABLE); requireRestart() }
     val friendFeedMessagePreview = container("friend_feed_message_preview", FriendFeedMessagePreview()) { requireRestart() }
     val snapPreview = boolean("snap_preview") { addNotices(FeatureNotice.UNSTABLE); requireRestart() }

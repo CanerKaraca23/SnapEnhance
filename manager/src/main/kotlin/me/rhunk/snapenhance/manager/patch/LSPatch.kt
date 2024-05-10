@@ -169,7 +169,12 @@ class LSPatch(
 
         printLog("Adding meta loader dex")
         context.assets.open("lspatch/dexes/metaloader.dex").use { inputStream ->
-            dstZFile.add(dexObfuscationConfig?.let { "classes9.dex" } ?: "classes.dex", dexObfuscationConfig?.let {
+            dstZFile.add(dexObfuscationConfig?.let {
+                val dexFileIndex = sourceApkFile.entries().count {
+                    it.centralDirectoryHeader.name.startsWith("classes") && it.centralDirectoryHeader.name.endsWith(".dex")
+                } + 1
+                "classes${dexFileIndex}.dex"
+            } ?: "classes.dex", dexObfuscationConfig?.let {
                 lspatchObfuscation.obfuscateMetaLoader(inputStream, it).inputStream()
             } ?: inputStream)
         }

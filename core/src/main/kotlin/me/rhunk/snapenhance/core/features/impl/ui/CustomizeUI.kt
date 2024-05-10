@@ -1,8 +1,8 @@
 package me.rhunk.snapenhance.core.features.impl.ui
 
 import android.content.res.TypedArray
-import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.util.TypedValue
 import me.rhunk.snapenhance.core.features.Feature
 import me.rhunk.snapenhance.core.features.FeatureLoadParams
 import me.rhunk.snapenhance.core.util.hook.HookStage
@@ -11,34 +11,32 @@ import me.rhunk.snapenhance.core.util.hook.hook
 import me.rhunk.snapenhance.core.util.ktx.getIdentifier
 
 class CustomizeUI: Feature("Customize UI", loadParams = FeatureLoadParams.ACTIVITY_CREATE_SYNC) {
-    private fun parseColor(color: String): Int? {
-        return color.takeIf { it.isNotEmpty() }?.let {
-            runCatching { Color.parseColor(color) }.getOrNull()
-        }
+    private fun getAttribute(name: String): Int {
+        return context.resources.getIdentifier(name, "attr")
     }
 
     override fun onActivityCreate() {
-        val isAmoledMode = context.config.userInterface.amoledDarkMode.get()
-        val isCustomizeUI = context.config.userInterface.customizeUi.globalState == true
-
-        if (!isAmoledMode && !isCustomizeUI) return
-
-        //TODO: color picker
         val customizeUIConfig = context.config.userInterface.customizeUi
-        val effectiveTextColor = customizeUIConfig.textColor.getNullable()
-        val effectivesendAndReceivedTextColor = customizeUIConfig.sendAndReceivedTextColor.getNullable()
-        val effectiveBackgroundColor = customizeUIConfig.backgroundColor.getNullable()
-        val effectiveBackgroundColorSurface = customizeUIConfig.backgroundColorSurface.getNullable()
-        val effectiveActionMenuBackgroundColor = customizeUIConfig.actionMenuBackgroundColor.getNullable()
-        val effectiveActionMenuRoundBackgroundColor = customizeUIConfig.actionMenuRoundBackgroundColor.getNullable()
-        val effectiveCameraGridLines = customizeUIConfig.cameraGridLines.getNullable()
+        val themePicker = customizeUIConfig.themePicker.getNullable() ?: return
+        val colorsConfig = context.config.userInterface.customizeUi.colors
 
-
-        val attributeCache = mutableMapOf<String, Int>()
-
-        fun getAttribute(name: String): Int {
-            if (attributeCache.containsKey(name)) return attributeCache[name]!!
-            return context.resources.getIdentifier(name, "attr").also { attributeCache[name] = it }
+        if (themePicker == "custom") {
+            themes.clear()
+            themes[themePicker] = mapOf(
+                "sigColorTextPrimary" to colorsConfig.textColor.getNullable(),
+                "sigColorChatChat" to colorsConfig.chatChatTextColor.getNullable(),
+                "sigColorChatPendingSending" to  colorsConfig.pendingSendingTextColor.getNullable(),
+                "sigColorChatSnapWithSound" to colorsConfig.snapWithSoundTextColor.getNullable(),
+                "sigColorChatSnapWithoutSound" to colorsConfig.snapWithoutSoundTextColor.getNullable(),
+                "sigColorBackgroundMain" to colorsConfig.backgroundColor.getNullable(),
+                "sigColorBackgroundSurface" to colorsConfig.backgroundColorSurface.getNullable(),
+                "actionSheetBackgroundDrawable" to colorsConfig.actionMenuBackgroundColor.getNullable(),
+                "actionSheetRoundedBackgroundDrawable" to colorsConfig.actionMenuRoundBackgroundColor.getNullable(),
+                "sigExceptionColorCameraGridLines" to colorsConfig.cameraGridLines.getNullable(),
+            ).apply {
+            }.filterValues { it != null }.map { (key, value) ->
+                getAttribute(key) to value!!
+            }.toMap()
         }
 
         context.androidContext.theme.javaClass.getMethod("obtainStyledAttributes", IntArray::class.java).hook(
@@ -52,75 +50,126 @@ class CustomizeUI: Feature("Customize UI", loadParams = FeatureLoadParams.ACTIVI
                 }
             }
 
-            if (isAmoledMode) {
-                when (array[0]) {
-                    getAttribute("sigColorTextPrimary") -> {
-                        ephemeralHook("getColor", 0xFFFFFFFF.toInt())
+            themes[themePicker]?.get(array[0])?.let { value ->
+                when (val attributeType = result.getType(0)) {
+                    TypedValue.TYPE_INT_COLOR_ARGB8, TypedValue.TYPE_INT_COLOR_RGB8, TypedValue.TYPE_INT_COLOR_ARGB4, TypedValue.TYPE_INT_COLOR_RGB4 -> {
+                        ephemeralHook("getColor", (value as Number).toInt())
                     }
-                    getAttribute("sigColorBackgroundMain"),
-                    getAttribute("sigColorBackgroundSurface") -> {
-                        ephemeralHook("getColor", 0xFF000000.toInt())
+                    TypedValue.TYPE_STRING -> {
+                        val stringValue = result.getString(0)
+                        if (stringValue?.endsWith(".xml") == true) {
+                            ephemeralHook("getDrawable", ColorDrawable((value as Number).toInt()))
+                        }
                     }
-                    getAttribute("actionSheetBackgroundDrawable"),
-                    getAttribute("actionSheetRoundedBackgroundDrawable") -> {
-                        ephemeralHook("getDrawable", ColorDrawable(0xFF000000.toInt()))
-                    }
-                }
-            }
-
-            if (isCustomizeUI) {
-                when (array[0]) {
-                    getAttribute("sigColorTextPrimary") -> {
-                        ephemeralHook("getColor", effectiveTextColor ?: return@hook)
-                    }
-
-                    getAttribute("sigColorTextSecondary") -> {
-                        ephemeralHook("getColor", effectiveTextColor ?: return@hook)
-                    }
-
-                    getAttribute("sigColorBackgroundMain") -> {
-                        ephemeralHook("getColor", effectiveBackgroundColor ?: return@hook)
-                    }
-
-                    getAttribute("sigColorBackgroundSurface") -> {
-                        ephemeralHook("getColor", effectiveBackgroundColorSurface ?: return@hook)
-                    }
-
-                    getAttribute("actionSheetBackgroundDrawable") -> {
-                        ephemeralHook("getDrawable", ColorDrawable(effectiveActionMenuBackgroundColor ?: return@hook))
-                    }
-
-                    getAttribute("actionSheetRoundedBackgroundDrawable") -> {
-                        ephemeralHook("getDrawable", ColorDrawable(effectiveActionMenuRoundBackgroundColor ?: return@hook))
-                    }
-                    
-                    getAttribute("sigColorChatActivity") -> {
-                        ephemeralHook("getColor", effectivesendAndReceivedTextColor ?: return@hook)
-                    }
-                    
-                    getAttribute("sigColorChatChat") -> {
-                        ephemeralHook("getColor", effectivesendAndReceivedTextColor ?: return@hook)
-                    }
-                    
-                    getAttribute("sigColorChatPendingSending") -> {
-                        ephemeralHook("getColor", effectivesendAndReceivedTextColor ?: return@hook)
-                    }
-                    
-                    getAttribute("sigColorChatSnapWithSound") -> {
-                        ephemeralHook("getColor", effectivesendAndReceivedTextColor ?: return@hook)
-                    }
-                    
-                    getAttribute("sigColorChatSnapWithoutSound") -> {
-                        ephemeralHook("getColor", effectivesendAndReceivedTextColor ?: return@hook)
-                    }
-                    
-                    getAttribute("sigExceptionColorCameraGridLines") -> {
-                        ephemeralHook("getColor", effectiveCameraGridLines ?: return@hook)
-                    }
+                    else -> context.log.warn("unknown attribute type: ${attributeType.toString(16)}")
                 }
             }
         }
     }
-}
 
-                
+    private val themes by lazy {
+       mapOf(
+           "amoled_dark_mode" to mapOf(
+               "sigColorTextPrimary" to 0xFFFFFFFF,
+               "sigColorBackgroundMain" to 0xFF000000,
+               "sigColorBackgroundSurface" to 0xFF000000,
+               "actionSheetBackgroundDrawable" to 0xFF000000,
+               "actionSheetRoundedBackgroundDrawable" to 0xFF000000
+           ),
+           "light_blue" to mapOf(
+               "sigColorTextPrimary" to 0xFF03BAFC,
+               "sigColorBackgroundMain" to 0xFFBDE6FF,
+               "sigColorBackgroundSurface" to 0xFF78DBFF,
+               "actionSheetBackgroundDrawable" to 0xFF78DBFF,
+               "sigColorChatChat" to 0xFF08D6FF,
+               "sigExceptionColorCameraGridLines" to 0xFF08D6FF
+           ),
+           "dark_blue" to mapOf(
+               "sigColorTextPrimary" to 0xFF98C2FD,
+               "sigColorBackgroundMain" to 0xFF192744,
+               "sigColorBackgroundSurface" to 0xFF192744,
+               "actionSheetBackgroundDrawable" to 0xFF192744,
+               "sigColorChatChat" to 0xFF98C2FD,
+               "sigExceptionColorCameraGridLines" to 0xFF192744
+           ),
+           "earthy_autumn" to mapOf(
+               "sigColorTextPrimary" to 0xFFF7CAC9,
+               "sigColorBackgroundMain" to 0xFF800000,
+               "sigColorBackgroundSurface" to 0xFF800000,
+               "actionSheetBackgroundDrawable" to 0xFF800000,
+               "sigColorChatChat" to 0xFFF7CAC9,
+               "sigExceptionColorCameraGridLines" to 0xFF800000
+           ),
+           "mint_chocolate" to mapOf(
+               "sigColorTextPrimary" to 0xFFFFFFFF,
+               "sigColorBackgroundMain" to 0xFF98FF98,
+               "sigColorBackgroundSurface" to 0xFF98FF98,
+               "actionSheetBackgroundDrawable" to 0xFF98FF98,
+               "sigColorChatChat" to 0xFFFFFFFF,
+               "sigColorChatPendingSending" to 0xFFFFFFFF,
+               "sigColorChatSnapWithSound" to 0xFFFFFFFF,
+               "sigColorChatSnapWithoutSound" to 0xFFFFFFFF,
+               "sigExceptionColorCameraGridLines" to 0xFF98FF98
+           ),
+           "ginger_snap" to mapOf(
+               "sigColorTextPrimary" to 0xFFFFFFFF,
+               "sigColorBackgroundMain" to 0xFFC6893A,
+               "sigColorBackgroundSurface" to 0xFFC6893A,
+               "actionSheetBackgroundDrawable" to 0xFFC6893A,
+               "sigColorChatChat" to 0xFFFFFFFF,
+               "sigColorChatPendingSending" to 0xFFFFFFFF,
+               "sigColorChatSnapWithSound" to 0xFFFFFFFF,
+               "sigColorChatSnapWithoutSound" to 0xFFFFFFFF,
+               "sigExceptionColorCameraGridLines" to 0xFFC6893A
+           ),
+           "lemon_meringue" to mapOf(
+               "sigColorTextPrimary" to 0xFF000000,
+               "sigColorBackgroundMain" to 0xFFFCFFE7,
+               "sigColorBackgroundSurface" to 0xFFFCFFE7,
+               "actionSheetBackgroundDrawable" to 0xFFFCFFE7,
+               "sigColorChatChat" to 0xFF000000,
+               "sigColorChatPendingSending" to 0xFF000000,
+               "sigColorChatSnapWithSound" to 0xFF000000,
+               "sigColorChatSnapWithoutSound" to 0xFF000000,
+               "sigExceptionColorCameraGridLines" to 0xFFFCFFE7
+           ),
+           "lava_flow" to mapOf(
+               "sigColorTextPrimary" to 0xFFFFCC00,
+               "sigColorBackgroundMain" to 0xFFC70039,
+               "sigColorBackgroundSurface" to 0xFFC70039,
+               "actionSheetBackgroundDrawable" to 0xFFC70039,
+               "sigColorChatChat" to 0xFFFFCC00,
+               "sigColorChatPendingSending" to 0xFFFFCC00,
+               "sigColorChatSnapWithSound" to 0xFFFFCC00,
+               "sigColorChatSnapWithoutSound" to 0xFFFFCC00,
+               "sigExceptionColorCameraGridLines" to 0xFFC70039
+           ),
+           "ocean_fog" to mapOf(
+               "sigColorTextPrimary" to 0xFF333333,
+               "sigColorBackgroundMain" to 0xFFB0C4DE,
+               "sigColorBackgroundSurface" to 0xFFB0C4DE,
+               "actionSheetBackgroundDrawable" to 0xFFB0C4DE,
+               "sigColorChatChat" to 0xFF333333,
+               "sigColorChatPendingSending" to 0xFF333333,
+               "sigColorChatSnapWithSound" to 0xFF333333,
+               "sigColorChatSnapWithoutSound" to 0xFF333333,
+               "sigExceptionColorCameraGridLines" to 0xFFB0C4DE
+           ),
+           "alien_landscape" to mapOf(
+               "sigColorTextPrimary" to 0xFFFFFFFF,
+               "sigColorBackgroundMain" to 0xFF9B59B6,
+               "sigColorBackgroundSurface" to 0xFF9B59B6,
+               "actionSheetBackgroundDrawable" to 0xFF9B59B6,
+               "sigColorChatChat" to 0xFFFFFFFF,
+               "sigColorChatPendingSending" to 0xFFFFFFFF,
+               "sigColorChatSnapWithSound" to 0xFFFFFFFF,
+               "sigColorChatSnapWithoutSound" to 0xFFFFFFFF,
+               "sigExceptionColorCameraGridLines" to 0xFF9B59B6
+           )
+       ).mapValues { (_, attributes) ->
+            attributes.map { (key, value) ->
+                getAttribute(key) to value as Any
+            }.toMap()
+        }.toMutableMap()
+    }
+}
