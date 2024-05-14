@@ -29,7 +29,10 @@ import me.rhunk.snapenhance.bridge.DownloadCallback
 import me.rhunk.snapenhance.common.bridge.wrapper.LoggedMessage
 import me.rhunk.snapenhance.common.bridge.wrapper.LoggerWrapper
 import me.rhunk.snapenhance.common.data.ContentType
-import me.rhunk.snapenhance.common.data.download.*
+import me.rhunk.snapenhance.common.data.download.DownloadMetadata
+import me.rhunk.snapenhance.common.data.download.DownloadRequest
+import me.rhunk.snapenhance.common.data.download.MediaDownloadSource
+import me.rhunk.snapenhance.common.data.download.createNewFilePath
 import me.rhunk.snapenhance.common.util.ktx.copyToClipboard
 import me.rhunk.snapenhance.common.util.ktx.longHashCode
 import me.rhunk.snapenhance.common.util.protobuf.ProtoReader
@@ -79,13 +82,7 @@ class LoggerHistoryRoot : Routes.Route() {
             }
         ).enqueue(
             DownloadRequest(
-                inputMedias = arrayOf(
-                    InputMedia(
-                        content = attachment.mediaUrlKey!!,
-                        type = DownloadMediaType.PROTO_MEDIA,
-                        encryption = attachment.attachmentInfo?.encryption,
-                    )
-                )
+                inputMedias = arrayOf(attachment.createInputMedia()!!)
             ),
             DownloadMetadata(
                 mediaIdentifier = attachmentHash,

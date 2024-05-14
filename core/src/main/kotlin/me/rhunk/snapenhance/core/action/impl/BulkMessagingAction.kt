@@ -71,6 +71,8 @@ class BulkMessagingAction : AbstractAction() {
         DELETED,
         SUGGESTED,
         BUSINESS_ACCOUNTS,
+        STREAKS,
+        NON_STREAKS,
     }
 
     private val translation by lazy { context.translation.getCategory("bulk_messaging_action") }
@@ -158,6 +160,8 @@ class BulkMessagingAction : AbstractAction() {
                 Filter.SUGGESTED -> friend.friendLinkType == FriendLinkType.SUGGESTED.value
                 Filter.DELETED -> friend.friendLinkType == FriendLinkType.DELETED.value
                 Filter.BUSINESS_ACCOUNTS -> friend.businessCategory > 0
+                Filter.STREAKS -> friend.friendLinkType == FriendLinkType.MUTUAL.value && friend.addedTimestamp > 0 && friend.streakLength != 0
+                Filter.NON_STREAKS -> friend.friendLinkType == FriendLinkType.MUTUAL.value&& friend.addedTimestamp > 0 && friend.streakLength == 0
             } && nameFilter.takeIf { it.isNotBlank() }?.let { name ->
                 friend.mutableUsername?.contains(
                     name,

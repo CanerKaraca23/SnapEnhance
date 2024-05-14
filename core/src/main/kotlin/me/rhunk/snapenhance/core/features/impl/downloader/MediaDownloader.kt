@@ -52,11 +52,9 @@ import me.rhunk.snapenhance.core.wrapper.impl.media.opera.Layer
 import me.rhunk.snapenhance.core.wrapper.impl.media.opera.ParamMap
 import me.rhunk.snapenhance.core.wrapper.impl.media.toKeyPair
 import me.rhunk.snapenhance.mapper.impl.OperaPageViewControllerMapper
-import java.io.ByteArrayInputStream
 import java.nio.file.Paths
 import java.util.UUID
 import kotlin.coroutines.suspendCoroutine
-import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.math.absoluteValue
 
@@ -544,7 +542,6 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
         attachments: List<DecodedAttachment>,
         forceAllowDuplicate: Boolean = false
     ) {
-        //TODO: stickers
         attachments.forEach { attachment ->
             runCatching {
                 provideDownloadManagerClient(
@@ -554,12 +551,11 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                     friendInfo = friendInfo,
                     forceAllowDuplicate = forceAllowDuplicate,
                     creationTimestamp = message.creationTimestamp,
-                ).downloadSingleMedia(
-                    mediaData = attachment.mediaUrlKey!!,
-                    mediaType = DownloadMediaType.PROTO_MEDIA,
-                    encryption = attachment.attachmentInfo?.encryption,
-                    attachmentType = attachment.type
-                )
+                ).apply {
+                    downloadInputMedias(
+                        arrayOf(attachment.createInputMedia()!!)
+                    )
+                }
             }.onFailure {
                 context.longToast(translations["failed_generic_toast"])
                 context.log.error("Failed to download", it)
@@ -577,32 +573,31 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
     ) {
         var previewBitmap: Bitmap? = null
         val previewCoroutine = context.coroutineScope.launch {
-            val downloadedMedia = RemoteMediaResolver.downloadBoltMedia(Base64.decode(attachment.mediaUrlKey!!), decryptionCallback = {
-                attachment.attachmentInfo?.encryption?.decryptInputStream(it) ?: it
-            }) ?: return@launch
+            runCatching {
+                attachment.openStream { attachmentStream ->
+                    val downloadedMediaList = mutableMapOf<SplitMediaAssetType, ByteArray>()
 
-            val downloadedMediaList = mutableMapOf<SplitMediaAssetType, ByteArray>()
+                    MediaDownloaderHelper.getSplitElements(attachmentStream!!) {
+                            type, inputStream ->
+                        downloadedMediaList[type] = inputStream.readBytes()
+                    }
 
-            MediaDownloaderHelper.getSplitElements(ByteArrayInputStream(downloadedMedia)) {
-                    type, inputStream ->
-                downloadedMediaList[type] = inputStream.readBytes()
-            }
+                    val originalMedia = downloadedMediaList[SplitMediaAssetType.ORIGINAL] ?: return@openStream
+                    val overlay = downloadedMediaList[SplitMediaAssetType.OVERLAY]
 
-            val originalMedia = downloadedMediaList[SplitMediaAssetType.ORIGINAL] ?: return@launch
-            val overlay = downloadedMediaList[SplitMediaAssetType.OVERLAY]
+                    var bitmap = PreviewUtils.createPreview(originalMedia, isVideo = FileType.fromByteArray(originalMedia).isVideo)
+                        ?: throw Exception("preview is null")
 
-            var bitmap: Bitmap? = PreviewUtils.createPreview(originalMedia, isVideo = FileType.fromByteArray(originalMedia).isVideo)
+                    overlay?.also {
+                        bitmap = PreviewUtils.mergeBitmapOverlay(bitmap, BitmapFactory.decodeByteArray(it, 0, it.size))
+                    }
 
-            if (bitmap == null) {
+                    previewBitmap = bitmap
+                }
+            }.onFailure {
                 context.shortToast(translations["failed_to_create_preview_toast"])
-                return@launch
+                context.log.error("Failed to create preview", it)
             }
-
-            overlay?.also {
-                bitmap = PreviewUtils.mergeBitmapOverlay(bitmap!!, BitmapFactory.decodeByteArray(it, 0, it.size))
-            }
-
-            previewBitmap = bitmap
         }
 
         with(ViewAppearanceHelper.newAlertDialogBuilder(context.mainActivity)) {

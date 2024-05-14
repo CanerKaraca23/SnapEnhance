@@ -19,7 +19,7 @@ abstract class AbstractWrapper(
     inner class FieldAccessor<T>(private val fieldName: String, private val mapper: ((Any?) -> T?)? = null) {
         @Suppress("UNCHECKED_CAST")
         operator fun getValue(obj: Any, property: KProperty<*>): T? {
-            val value = XposedHelpers.getObjectField(instance, fieldName)
+            val value = runCatching { XposedHelpers.getObjectField(instance, fieldName) }.getOrNull()
             return if (mapper != null) {
                 mapper.invoke(value)
             } else {
