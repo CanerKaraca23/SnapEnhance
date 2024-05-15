@@ -378,7 +378,7 @@
                                     },
                                     "pending_sending_text_color": {
                                         "name": "Secondary Friend Feed Text Color",
-                                        "description": "Changes the text color of ( Delivered / Recevived / Sending / Opened / Tap To Chat / Hold To Replay / Replayed / Saved In Chat / Called ) on the friend feed"
+                                        "description": "Changes the text color of ( Delivered / Received / Sending / Opened / Tap To Chat / Hold To Replay / Replayed / Saved In Chat / Called ) on the friend feed"
                                     },
                                     "snap_with_sound_text_color": {
                                         "name": "Snaps With Sound Text Color",
