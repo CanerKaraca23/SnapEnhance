@@ -22,11 +22,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -241,7 +243,7 @@ class HomeRoot : Routes.Route() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 30.dp, top = 20.dp),
+                    .padding(start = 20.dp, end = 10.dp, top = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Quick Actions", fontSize = 20.sp, modifier = Modifier.weight(1f))
@@ -284,21 +286,25 @@ class HomeRoot : Routes.Route() {
                         }
                     }
                 }
-
             }
 
             FlowRow(
                 modifier = Modifier
                     .padding(all = cardMargin)
                     .fillMaxWidth(),
+                maxItemsInEachRow = 3,
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
+                val tileHeight = LocalDensity.current.run {
+                    remember { (context.androidContext.resources.displayMetrics.widthPixels / 3).toDp() - cardMargin / 2 }
+                }
+
                 remember(selectedTiles.size, context.translation.loadedLocale) { selectedTiles.mapNotNull {
                     cards.entries.find { entry -> entry.key.first == it }
                 } }.forEach { (card, action) ->
                     ElevatedCard(
                         modifier = Modifier
-                            .size(105.dp)
+                            .height(tileHeight)
                             .weight(1f)
                             .clickable { action() }
                             .padding(all = 6.dp),
@@ -316,8 +322,12 @@ class HomeRoot : Routes.Route() {
                                 modifier = Modifier.size(50.dp)
                             )
                             Text(
-                                lineHeight = 16.sp, text = card.first, fontSize = 11.sp,
-                                textAlign = TextAlign.Center
+                                text = card.first,
+                                lineHeight = 16.sp,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
