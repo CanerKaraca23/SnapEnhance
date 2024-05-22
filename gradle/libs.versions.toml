@@ -4,9 +4,8 @@ colorpicker-compose = "1.0.8"
 libsu = "5.2.2"
 guava = "33.2.0-jre"
 jsoup = "1.17.2"
-kotlin = "1.9.24"
+kotlin = "2.0.0"
 kotlinx-coroutines-android = "1.8.1"
-compose-compiler = "1.5.14"
 activity-ktx = "1.9.0"
 androidx-documentfile = "1.1.0-alpha01"
 coil-compose = "2.6.0"
@@ -57,5 +56,6 @@ rhino-android = { group = "com.faendir.rhino", name = "rhino-android", version.r
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
