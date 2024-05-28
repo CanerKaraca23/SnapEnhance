@@ -14,13 +14,11 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import kotlinx.coroutines.*
 import me.rhunk.snapenhance.common.data.ContentType
-import me.rhunk.snapenhance.common.data.MediaReferenceType
+import me.rhunk.snapenhance.common.data.FileType
 import me.rhunk.snapenhance.common.data.MessageUpdate
 import me.rhunk.snapenhance.common.data.NotificationType
 import me.rhunk.snapenhance.common.data.download.SplitMediaAssetType
-import me.rhunk.snapenhance.common.util.protobuf.ProtoReader
 import me.rhunk.snapenhance.common.util.snap.MediaDownloaderHelper
-import me.rhunk.snapenhance.common.util.snap.RemoteMediaResolver
 import me.rhunk.snapenhance.common.util.snap.SnapWidgetBroadcastReceiverHelper
 import me.rhunk.snapenhance.core.event.events.impl.SnapWidgetBroadcastReceiveEvent
 import me.rhunk.snapenhance.core.features.Feature
@@ -81,10 +79,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
     }
 
     private val translations by lazy { context.translation.getCategory("better_notifications") }
-
-    private val betterNotificationFilter by lazy {
-        context.config.messaging.betterNotifications.get()
-    }
+    private val config by lazy { context.config.messaging.betterNotifications }
 
     private fun newNotificationBuilder(notification: Notification) = XposedHelpers.newInstance(
         Notification.Builder::class.java,
@@ -138,7 +133,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
         }
 
         newAction(translations["button.reply"], ACTION_REPLY, {
-            betterNotificationFilter.contains("reply_button") && contentType == ContentType.CHAT
+            config.replyButton.get() && contentType == ContentType.CHAT
         }) {
             val chatReplyInput = RemoteInput.Builder("chat_reply_input")
                 .setLabel(translations["button.reply"])
@@ -147,11 +142,11 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
         }
 
         newAction(translations["button.download"], ACTION_DOWNLOAD, {
-            betterNotificationFilter.contains("download_button") && betterNotificationFilter.contains("media_preview") && (contentType == ContentType.EXTERNAL_MEDIA || contentType == ContentType.SNAP)
+            config.downloadButton.get() && config.mediaPreview.get().contains(contentType.name)
         }) {}
 
         newAction(translations["button.mark_as_read"], ACTION_MARK_AS_READ, {
-            betterNotificationFilter.contains("mark_as_read_button")
+            config.markAsReadButton.get()
         }) {}
 
         val notificationBuilder = newNotificationBuilder(notificationData.notification).apply {
@@ -214,13 +209,9 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
                 }
                 ACTION_MARK_AS_READ -> {
                     runCatching {
-                        if (context.feature(StealthMode::class).canUseRule(conversationId)) {
-                            context.longToast(translations["stealth_mode_notice"])
-                            return@subscribe
-                        }
-
                         val conversationManager = context.feature(Messaging::class).conversationManager ?: return@subscribe
 
+                        context.feature(StealthMode::class).addDisplayedMessageException(clientMessageId)
                         conversationManager.displayedMessages(
                             conversationId,
                             clientMessageId,
@@ -232,7 +223,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
                             }
                         )
 
-                        if (betterNotificationFilter.contains("mark_as_read_and_save_in_chat")) {
+                        if (config.markAsReadAndSaveInChat.get()) {
                             val messaging = context.feature(Messaging::class)
                             val autoSave = context.feature(AutoSave::class)
 
@@ -285,7 +276,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
         val notificationId = if (forceCreate) System.nanoTime().toInt() else message.messageDescriptor?.conversationId?.toBytes().contentHashCode()
         sentNotifications.computeIfAbsent(notificationId) { conversationId }
 
-        if (betterNotificationFilter.contains("group")) {
+        if (config.groupNotifications.get()) {
             runCatching {
                 if (notificationManager.activeNotifications.firstOrNull {
                     it.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
@@ -324,6 +315,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
         val contentType = message.messageContent!!.contentType!!.let { contentType ->
             when {
                 notificationType.contains("screenshot") -> ContentType.STATUS_CONVERSATION_CAPTURE_SCREENSHOT
+                notificationType.contains("save_camera_roll") -> ContentType.STATUS_SAVE_TO_CAMERA_ROLL
                 else -> contentType
             }
         }
@@ -336,41 +328,23 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
             }[orderKey] = if (includeUsername) "$senderUsername: $text" else text
         }
 
-        when (
-            contentType.takeIf {
-                (it != ContentType.SNAP && it != ContentType.EXTERNAL_MEDIA) || betterNotificationFilter.contains("media_preview")
-            } ?: ContentType.UNKNOWN
-        ) {
-            ContentType.CHAT -> {
-                ProtoReader(message.messageContent!!.content!!).getString(2, 1)?.trim()?.let {
-                    setNotificationText(it)
-                }
-                computeMessages()
-            }
-            ContentType.SNAP, ContentType.EXTERNAL_MEDIA -> {
-                val mediaReferences = MessageDecoder.getMediaReferences(
-                    messageContent = context.gson.toJsonTree(message.messageContent!!.instanceNonNull())
-                )
-
-                val mediaReferenceKeys = mediaReferences.map { reference ->
-                    reference.asJsonObject.getAsJsonArray("mContentObject").map { it.asByte }.toByteArray()
-                }
-
-                MessageDecoder.decode(message.messageContent!!).firstOrNull()?.also { media ->
-                    val mediaType = MediaReferenceType.valueOf(mediaReferences.first().asJsonObject["mMediaType"].asString)
-
-                    runCatching {
-                        val downloadedMedia = RemoteMediaResolver.downloadBoltMedia(mediaReferenceKeys.first(), decryptionCallback =  {
-                            media.attachmentInfo?.encryption?.decryptInputStream(it) ?: it
-                        }) ?: throw Throwable("Unable to download media")
-
+        if (config.mediaPreview.get().contains(contentType.name)) {
+            MessageDecoder.decode(message.messageContent!!).firstOrNull()?.also { media ->
+                runCatching {
+                    media.openStream { mediaStream, length ->
+                        if (mediaStream == null || length > 25 * 1024 * 1024) {
+                            context.log.error("Failed to open media stream or media is too large")
+                            sendNotification(message, data, true)
+                            return@openStream
+                        }
                         val downloadedMedias = mutableMapOf<SplitMediaAssetType, ByteArray>()
 
-                        MediaDownloaderHelper.getSplitElements(downloadedMedia.inputStream()) { type, inputStream ->
+                        MediaDownloaderHelper.getSplitElements(mediaStream) { type, inputStream ->
                             downloadedMedias[type] = inputStream.readBytes()
                         }
 
-                        var bitmapPreview = PreviewUtils.createPreview(downloadedMedias[SplitMediaAssetType.ORIGINAL]!!, mediaType.name.contains("VIDEO"))!!
+                        val originalMedia = downloadedMedias[SplitMediaAssetType.ORIGINAL]!!
+                        var bitmapPreview = PreviewUtils.createPreview(originalMedia, FileType.fromByteArray(originalMedia).isVideo)!!
 
                         downloadedMedias[SplitMediaAssetType.OVERLAY]?.let {
                             bitmapPreview = PreviewUtils.mergeBitmapOverlay(bitmapPreview, BitmapFactory.decodeByteArray(it, 0, it.size))
@@ -381,19 +355,43 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
                             style = Notification.BigPictureStyle().bigPicture(bitmapPreview).bigLargeIcon(null as Bitmap?)
                         }
 
+                        if (config.mediaCaption.get()) {
+                            message.serialize()?.let {
+                                notificationBuilder.setContentText(it)
+                            }
+                        }
+
                         sendNotification(message, data.copy(notification = notificationBuilder.build()), true)
-                        return
-                    }.onFailure {
-                        context.log.error("Failed to send preview notification", it)
                     }
+                    return
+                }.onFailure {
+                    context.log.error("Failed to send preview notification", it)
+                    sendNotification(message, data, true)
+                    return
                 }
             }
-            else -> {
-                setNotificationText("[" + context.translation.getCategory("content_type")[contentType.name] + "]")
-                computeMessages()
-            }
         }
-        if (!betterNotificationFilter.contains("chat_preview")) return
+
+        if (config.chatPreview.get()) {
+            if (contentType == ContentType.CHAT) {
+                setNotificationText(message.serialize() ?: "[Failed to parse message]")
+            } else {
+                if (config.stackedMediaMessages.get()) {
+                    setNotificationText(buildString {
+                        append("[")
+                        append(context.translation.getCategory("content_type")[contentType.name])
+                        append("]")
+                        if (config.mediaCaption.get()) {
+                            message.serialize()?.let { append(" $it") }
+                        }
+                    })
+                } else {
+                    sendNotification(message, data, true)
+                    return
+                }
+            }
+            computeMessages()
+        }
 
         sendNotification(message, data, false)
     }
@@ -419,7 +417,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
             val notificationData = NotificationData(param.argNullable(0), param.arg(1), param.arg(2), param.arg(3))
             val extras = notificationData.notification.extras.getBundle("system_notification_extras")?: return@hook
 
-            if (betterNotificationFilter.contains("group")) {
+            if (config.groupNotifications.get()) {
                 notificationData.notification.setObjectField("mGroupKey", SNAPCHAT_NOTIFICATION_GROUP)
             }
 
@@ -430,7 +428,7 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
                 return@hook
             }
 
-            if (notificationType == "addfriend" && betterNotificationFilter.contains("friend_add_source")) {
+            if (notificationType == "addfriend" && config.friendAddSource.get()) {
                 val userId = notificationData.notification.shortcutId?.split("|")?.lastOrNull() ?: return@hook
                 runBlocking {
                     var addSource: String? = null
@@ -446,8 +444,8 @@ class Notifications : Feature("Notifications", loadParams = FeatureLoadParams.IN
                 return@hook
             }
 
-            if (!betterNotificationFilter.contains("chat_preview") && !betterNotificationFilter.contains("media_preview")) return@hook
-            if (notificationType == "typing") return@hook
+            if (!config.chatPreview.get() && config.mediaPreview.isEmpty()) return@hook
+            if (notificationType.endsWith("typing")) return@hook
 
             val serverMessageId = extras.getString("message_id") ?: return@hook
             val conversationId = extras.getString("conversation_id").also { id ->

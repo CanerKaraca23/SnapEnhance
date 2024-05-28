@@ -574,7 +574,7 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
         var previewBitmap: Bitmap? = null
         val previewCoroutine = context.coroutineScope.launch {
             runCatching {
-                attachment.openStream { attachmentStream ->
+                attachment.openStream { attachmentStream, _ ->
                     val downloadedMediaList = mutableMapOf<SplitMediaAssetType, ByteArray>()
 
                     MediaDownloaderHelper.getSplitElements(attachmentStream!!) {

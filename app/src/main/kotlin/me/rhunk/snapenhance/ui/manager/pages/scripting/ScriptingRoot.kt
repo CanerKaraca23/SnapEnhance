@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,7 +33,7 @@ import me.rhunk.snapenhance.common.scripting.ui.InterfaceManager
 import me.rhunk.snapenhance.common.scripting.ui.ScriptInterface
 import me.rhunk.snapenhance.common.ui.AsyncUpdateDispatcher
 import me.rhunk.snapenhance.common.ui.rememberAsyncMutableState
-import me.rhunk.snapenhance.storage.getScripts
+import me.rhunk.snapenhance.common.ui.rememberAsyncUpdateDispatcher
 import me.rhunk.snapenhance.storage.isScriptEnabled
 import me.rhunk.snapenhance.storage.setScriptEnabled
 import me.rhunk.snapenhance.ui.manager.Routes
@@ -142,6 +143,7 @@ class ScriptingRoot : Routes.Route() {
     @Composable
     private fun ModuleActions(
         script: ModuleInfo,
+        canUpdate: Boolean,
         dismiss: () -> Unit
     ) {
         Dialog(
@@ -153,8 +155,28 @@ class ScriptingRoot : Routes.Route() {
                     .padding(2.dp),
             ) {
                 val actions = remember {
-                    mapOf<Pair<String, ImageVector>, suspend () -> Unit>(
-                        ("Edit Module" to Icons.Default.Edit) to {
+                    mutableMapOf<Pair<String, ImageVector>, suspend () -> Unit>().apply {
+                        if (canUpdate) {
+                            put("Update Module" to Icons.Default.Download) {
+                                dismiss()
+                                context.shortToast("Updating script ${script.name}...")
+                                runCatching {
+                                    val modulePath = context.scriptManager.getModulePath(script.name) ?: throw Exception("Module not found")
+                                    context.scriptManager.unloadScript(modulePath)
+                                    val moduleInfo = context.scriptManager.importFromUrl(script.updateUrl!!, filepath = modulePath)
+                                    context.shortToast("Updated ${script.name} to version ${moduleInfo.version}")
+                                    context.database.setScriptEnabled(script.name, false)
+                                    withContext(context.database.executor.asCoroutineDispatcher()) {
+                                        reloadDispatcher.dispatch()
+                                    }
+                                }.onFailure {
+                                    context.log.error("Failed to update module", it)
+                                    context.shortToast("Failed to update module. Check logs for more details")
+                                }
+                            }
+                        }
+
+                        put("Edit Module" to Icons.Default.Edit) {
                             runCatching {
                                 val modulePath = context.scriptManager.getModulePath(script.name)!!
                                 context.androidContext.startActivity(
@@ -170,8 +192,8 @@ class ScriptingRoot : Routes.Route() {
                                 context.log.error("Failed to open module file", it)
                                 context.shortToast("Failed to open module file. Check logs for more details")
                             }
-                        },
-                        ("Clear Module Data" to Icons.Default.Save) to {
+                        }
+                        put("Clear Module Data" to Icons.Default.Save) {
                             runCatching {
                                 context.scriptManager.getModuleDataFolder(script.name)
                                     .deleteRecursively()
@@ -181,8 +203,8 @@ class ScriptingRoot : Routes.Route() {
                                 context.log.error("Failed to clear module data", it)
                                 context.shortToast("Failed to clear module data. Check logs for more details")
                             }
-                        },
-                        ("Delete Module" to Icons.Default.DeleteOutline) to {
+                        }
+                        put("Delete Module" to Icons.Default.DeleteOutline) {
                             context.scriptManager.apply {
                                 runCatching {
                                     val modulePath = getModulePath(script.name)!!
@@ -197,7 +219,7 @@ class ScriptingRoot : Routes.Route() {
                                 }
                             }
                         }
-                    )
+                    }.toMap()
                 }
 
                 LazyColumn(
@@ -243,14 +265,26 @@ class ScriptingRoot : Routes.Route() {
 
     @Composable
     fun ModuleItem(script: ModuleInfo) {
-        var enabled by rememberAsyncMutableState(defaultValue = false) {
+        var enabled by rememberAsyncMutableState(defaultValue = false, keys = arrayOf(script)) {
             context.database.isScriptEnabled(script.name)
         }
-        var openSettings by remember {
-            mutableStateOf(false)
+        var openSettings by remember(script) { mutableStateOf(false) }
+        var openActions by remember { mutableStateOf(false) }
+
+        val dispatcher = rememberAsyncUpdateDispatcher()
+        val reloadCallback = remember { suspend { dispatcher.dispatch() } }
+        val latestUpdate by rememberAsyncMutableState(defaultValue = null, updateDispatcher = dispatcher, keys = arrayOf(script)) {
+            context.scriptManager.checkForUpdate(script)
         }
-        var openActions by remember {
-            mutableStateOf(false)
+
+        LaunchedEffect(Unit) {
+            reloadDispatcher.addCallback(reloadCallback)
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                reloadDispatcher.removeCallback(reloadCallback)
+            }
         }
 
         Card(
@@ -286,6 +320,9 @@ class ScriptingRoot : Routes.Route() {
                 ) {
                     Text(text = script.displayName ?: script.name, fontSize = 20.sp)
                     Text(text = script.description ?: "No description", fontSize = 14.sp)
+                    latestUpdate?.let {
+                        Text(text = "Update available: ${it.version}", fontSize = 14.sp, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 IconButton(onClick = {
                     openActions = !openActions
@@ -333,7 +370,10 @@ class ScriptingRoot : Routes.Route() {
         }
 
         if (openActions) {
-            ModuleActions(script) { openActions = false }
+            ModuleActions(
+                script = script,
+                canUpdate = latestUpdate != null,
+            ) { openActions = false }
         }
     }
 
@@ -416,7 +456,7 @@ class ScriptingRoot : Routes.Route() {
             updateDispatcher = reloadDispatcher
         ) {
             context.scriptManager.sync()
-            context.database.getScripts()
+            context.scriptManager.getSyncedModules()
         }
 
         val coroutineScope = rememberCoroutineScope()
@@ -477,7 +517,7 @@ class ScriptingRoot : Routes.Route() {
                         )
                     }
                 }
-                items(scriptModules.size) { index ->
+                items(scriptModules.size, key = { scriptModules[it].hashCode() }) { index ->
                     ModuleItem(scriptModules[index])
                 }
                 item {

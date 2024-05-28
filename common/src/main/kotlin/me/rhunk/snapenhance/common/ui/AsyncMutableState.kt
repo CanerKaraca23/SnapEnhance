@@ -61,7 +61,7 @@ fun <T> rememberAsyncMutableState(
     defaultValue: T,
     updateDispatcher: AsyncUpdateDispatcher? = null,
     keys: Array<*> = emptyArray<Any>(),
-    getter: () -> T,
+    getter: suspend () -> T,
 ): MutableState<T> {
     return rememberCommonState(
         initialState = { mutableStateOf(defaultValue) },
@@ -82,7 +82,7 @@ fun <T> rememberAsyncMutableStateList(
     defaultValue: List<T>,
     updateDispatcher: AsyncUpdateDispatcher? = null,
     keys: Array<*> = emptyArray<Any>(),
-    getter: () -> List<T>,
+    getter: suspend () -> List<T>,
 ): SnapshotStateList<T> {
     return rememberCommonState(
         initialState = { mutableStateListOf<T>().apply {

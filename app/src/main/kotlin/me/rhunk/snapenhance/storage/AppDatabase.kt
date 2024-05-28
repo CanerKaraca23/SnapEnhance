@@ -56,14 +56,8 @@ class AppDatabase(
                 "expirationTimestamp BIGINT",
                 "length INTEGER"
             ),
-            "scripts" to listOf(
-                "id INTEGER PRIMARY KEY AUTOINCREMENT",
-                "name VARCHAR NOT NULL",
-                "version VARCHAR NOT NULL",
-                "displayName VARCHAR",
-                "description VARCHAR",
-                "author VARCHAR NOT NULL",
-                "enabled BOOLEAN"
+            "enabled_scripts" to listOf(
+                "name VARCHAR PRIMARY KEY",
             ),
             "tracker_rules" to listOf(
                 "id INTEGER PRIMARY KEY AUTOINCREMENT",

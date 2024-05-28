@@ -19,7 +19,6 @@ import me.rhunk.snapenhance.common.data.MessagingFriendInfo
 import me.rhunk.snapenhance.common.data.MessagingGroupInfo
 import me.rhunk.snapenhance.common.util.toSerialized
 import me.rhunk.snapenhance.core.bridge.BridgeClient
-import me.rhunk.snapenhance.core.bridge.loadFromBridge
 import me.rhunk.snapenhance.core.data.SnapClassCache
 import me.rhunk.snapenhance.core.event.events.impl.NativeUnaryCallEvent
 import me.rhunk.snapenhance.core.event.events.impl.SnapWidgetBroadcastReceiveEvent
@@ -148,12 +147,9 @@ class SnapEnhance {
                     log.error("Failed to sync remote", it)
                 }
                 translation.userLocale = getConfigLocale()
-                translation.loadFromCallback { locale ->
-                    bridgeClient.fetchLocales(locale)
-                }
+                translation.load()
             }
 
-            mappings.loadFromBridge(bridgeClient)
             mappings.init(androidContext)
             database.init()
             eventDispatcher.init()

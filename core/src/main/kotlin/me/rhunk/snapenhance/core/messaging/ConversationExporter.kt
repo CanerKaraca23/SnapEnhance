@@ -114,7 +114,7 @@ class ConversationExporter(
                 for (i in 0..5) {
                     printLog("downloading ${attachment.boltKey ?: attachment.directUrl}... (attempt ${i + 1}/5)")
                     runCatching {
-                        attachment.openStream { downloadedInputStream ->
+                        attachment.openStream { downloadedInputStream, _ ->
                             MediaDownloaderHelper.getSplitElements(downloadedInputStream!!) { type, splitInputStream ->
                                 val mediaKey = "${type}_${attachment.mediaUniqueId}"
                                 val bufferedInputStream = BufferedInputStream(splitInputStream)

@@ -128,6 +128,7 @@ class InAppOverlay {
 
                 LaunchedEffect(toast) {
                     toast.visible = true
+                    if (toast.durationMs < 0) return@LaunchedEffect
                     delay(toast.durationMs.toLong())
                     toast.visible = false
                     delay(1000)
@@ -145,6 +146,7 @@ class InAppOverlay {
                         velocityThreshold = { deviceWidth / 2f },
                         animationSpec = tween(),
                         confirmValueChange = {
+                            if (it == 0) return@AnchoredDraggableState true
                             toast.visible = false
                             true
                         }
@@ -236,7 +238,7 @@ class InAppOverlay {
     ) {
         toasts.add(Toast(
             composable = {
-                Card(
+                ElevatedCard(
                     modifier = Modifier
                         .padding(16.dp)
                         .shadow(8.dp, RoundedCornerShape(8.dp))
@@ -253,7 +255,7 @@ class InAppOverlay {
                         icon()
                         text()
                     }
-                    if (showDuration) {
+                    if (showDuration && durationMs > 0) {
                         DurationProgress(duration = durationMs, modifier = Modifier.fillMaxWidth())
                     }
                 }
