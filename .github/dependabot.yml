@@ -1,66 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: cargo
+  - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
-
-  - package-ecosystem: composer
+  - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: daily
-
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: mix
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: elm
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: gomod
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: maven
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: nuget
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: pub
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: swift
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: terraform
-    directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: bundler
+  - package-ecosystem: gradle
     directory: /
     schedule:
       interval: daily
