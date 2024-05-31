@@ -2,7 +2,7 @@
 agp = "8.4.1"
 colorpicker-compose = "1.0.8"
 libsu = "5.2.2"
-guava = "33.2.0-jre"
+guava = "33.2.1-jre"
 jsoup = "1.17.2"
 kotlin = "2.0.0"
 kotlinx-coroutines-android = "1.8.1"
