@@ -9,6 +9,7 @@ import me.rhunk.snapenhance.common.bridge.wrapper.LocaleWrapper
 import me.rhunk.snapenhance.common.logger.AbstractLogger
 import me.rhunk.snapenhance.common.util.ktx.toParcelFileDescriptor
 import java.io.File
+import java.io.OutputStream
 
 
 class LocalFileHandle(
@@ -39,7 +40,7 @@ class AssetFileHandle(
         return runCatching {
             context.androidContext.assets.open(assetPath).toParcelFileDescriptor(context.coroutineScope)
         }.onFailure {
-            AbstractLogger.directError("Failed to open asset handle: ${it.message}", it)
+            context.log.error("Failed to open asset handle: ${it.message}", it)
         }.getOrNull()
     }
 }
@@ -48,6 +49,10 @@ class AssetFileHandle(
 class RemoteFileHandleManager(
     private val context: RemoteSideContext
 ): FileHandleManager.Stub() {
+    private val userImportFolder = File(context.androidContext.filesDir, "user_imports").apply {
+        mkdirs()
+    }
+
     override fun getFileHandle(scope: String, name: String): FileHandle? {
         val fileHandleScope = FileHandleScope.fromValue(scope) ?: run {
             context.log.error("invalid file handle scope: $scope", "FileHandleManager")
@@ -81,7 +86,45 @@ class RemoteFileHandleManager(
                     "lang/$foundLocale.json"
                 )
             }
+            FileHandleScope.USER_IMPORT -> {
+                return LocalFileHandle(
+                    File(userImportFolder, name.substringAfterLast("/"))
+                )
+            }
             else -> return null
         }
+    }
+
+    fun getStoredFiles(filter: ((File) -> Boolean)? = null): List<File> {
+        return userImportFolder.listFiles()?.toList()?.let { files ->
+            filter?.let { files.filter(it) } ?: files
+        }?.sortedBy { -it.lastModified() } ?: emptyList()
+    }
+
+    fun getFileInfo(name: String): Pair<Long, Long>? {
+        return runCatching {
+            val file = File(userImportFolder, name)
+            file.length() to file.lastModified()
+        }.onFailure {
+            context.log.error("Failed to get file info: ${it.message}", it)
+        }.getOrNull()
+    }
+
+    fun importFile(name: String, block: OutputStream.() -> Unit): Boolean {
+        return runCatching {
+            val file = File(userImportFolder, name)
+            file.outputStream().use(block)
+            true
+        }.onFailure {
+            context.log.error("Failed to import file: ${it.message}", it)
+        }.getOrDefault(false)
+    }
+
+    fun deleteFile(name: String): Boolean {
+        return runCatching {
+            File(userImportFolder, name).delete()
+        }.onFailure {
+            context.log.error("Failed to delete file: ${it.message}", it)
+        }.isSuccess
     }
 }

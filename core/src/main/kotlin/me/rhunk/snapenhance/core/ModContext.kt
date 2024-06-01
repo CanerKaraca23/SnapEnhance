@@ -24,6 +24,7 @@ import me.rhunk.snapenhance.core.event.EventBus
 import me.rhunk.snapenhance.core.event.EventDispatcher
 import me.rhunk.snapenhance.core.features.Feature
 import me.rhunk.snapenhance.core.features.FeatureManager
+import me.rhunk.snapenhance.core.features.impl.experiments.getCustomEmojiFontPath
 import me.rhunk.snapenhance.core.logger.CoreLogger
 import me.rhunk.snapenhance.core.messaging.CoreMessagingBridge
 import me.rhunk.snapenhance.core.messaging.MessageSender
@@ -148,11 +149,13 @@ class ModContext(
     }
 
     fun reloadNativeConfig() {
+        if (config.experimental.nativeHooks.globalState != true) return
         native.loadNativeConfig(
             NativeConfig(
                 disableBitmoji = config.experimental.nativeHooks.disableBitmoji.get(),
                 disableMetrics = config.global.disableMetrics.get(),
                 composerHooks = config.experimental.nativeHooks.composerHooks.globalState == true,
+                customEmojiFontPath = getCustomEmojiFontPath(this)
             )
         )
     }

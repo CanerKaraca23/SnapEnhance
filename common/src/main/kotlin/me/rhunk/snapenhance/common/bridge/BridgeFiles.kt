@@ -12,7 +12,8 @@ enum class FileHandleScope(
     val key: String
 ) {
     INTERNAL("internal"),
-    LOCALE("locale");
+    LOCALE("locale"),
+    USER_IMPORT("user_import");
 
     companion object {
         fun fromValue(name: String): FileHandleScope? = entries.find { it.key == name }

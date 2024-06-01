@@ -27,6 +27,7 @@ import me.rhunk.snapenhance.common.bridge.wrapper.LocaleWrapper
 import me.rhunk.snapenhance.common.bridge.wrapper.LoggerWrapper
 import me.rhunk.snapenhance.common.bridge.wrapper.MappingsWrapper
 import me.rhunk.snapenhance.common.config.ModConfig
+import me.rhunk.snapenhance.common.logger.fatalCrash
 import me.rhunk.snapenhance.common.util.getPurgeTime
 import me.rhunk.snapenhance.e2ee.E2EEImplementation
 import me.rhunk.snapenhance.scripting.RemoteScriptManager
@@ -129,6 +130,7 @@ class RemoteSideContext(
             }
         }.onFailure {
             log.error("Failed to load RemoteSideContext", it)
+            androidContext.fatalCrash(it)
         }
 
         scriptManager.runtime.eachModule {
