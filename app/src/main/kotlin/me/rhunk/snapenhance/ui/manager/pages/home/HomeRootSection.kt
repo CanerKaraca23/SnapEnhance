@@ -2,47 +2,52 @@ package me.rhunk.snapenhance.ui.manager.pages.home
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.launch
 import me.rhunk.snapenhance.R
+import me.rhunk.snapenhance.action.EnumQuickActions
 import me.rhunk.snapenhance.common.BuildConfig
 import me.rhunk.snapenhance.common.Constants
 import me.rhunk.snapenhance.common.action.EnumAction
 import me.rhunk.snapenhance.common.ui.rememberAsyncMutableState
 import me.rhunk.snapenhance.common.ui.rememberAsyncMutableStateList
+import me.rhunk.snapenhance.core.ui.Snapenhance
 import me.rhunk.snapenhance.storage.getQuickTiles
 import me.rhunk.snapenhance.storage.setQuickTiles
 import me.rhunk.snapenhance.ui.manager.Routes
 import me.rhunk.snapenhance.ui.manager.data.Updater
 import me.rhunk.snapenhance.ui.util.ActivityLauncherHelper
+import java.text.DateFormat
 
-class HomeRoot : Routes.Route() {
+class HomeRootSection : Routes.Route() {
     companion object {
         val cardMargin = 10.dp
     }
@@ -50,23 +55,19 @@ class HomeRoot : Routes.Route() {
     private lateinit var activityLauncherHelper: ActivityLauncherHelper
 
     private fun launchActionIntent(action: EnumAction) {
-        val intent = context.androidContext.packageManager.getLaunchIntentForPackage(Constants.SNAPCHAT_PACKAGE_NAME)
+        val intent = context.androidContext.packageManager.getLaunchIntentForPackage(
+            Constants.SNAPCHAT_PACKAGE_NAME
+        )
         intent?.putExtra(EnumAction.ACTION_PARAMETER, action.key)
         context.androidContext.startActivity(intent)
     }
 
     private val cards by lazy {
-        mapOf(
-            ("File Imports" to Icons.Default.FolderOpen) to {
-                routes.fileImports.navigateReset()
-            },
-            ("Friend Tracker" to Icons.Default.PersonSearch) to {
-                routes.friendTracker.navigateReset()
-            },
-            ("Logger History" to Icons.Default.History) to {
-                routes.loggerHistory.navigateReset()
-            },
-        ).toMutableMap().apply {
+        EnumQuickActions.entries.map {
+            (context.translation["actions.${it.key}.name"] to it.icon) to it.action
+        }.associate {
+            it.first to it.second
+        }.toMutableMap().apply {
             EnumAction.entries.forEach { action ->
                 this[context.translation["actions.${action.key}.name"] to action.icon] = {
                     launchActionIntent(action)
@@ -75,25 +76,31 @@ class HomeRoot : Routes.Route() {
         }
     }
 
-    override val init: () -> Unit = {
-        activityLauncherHelper = ActivityLauncherHelper(context.activity !!)
-    }
-
-    override val topBarActions: @Composable (RowScope.() -> Unit) = {
-        IconButton(onClick = {
-            routes.homeLogs.navigate()
-        }) {
-            Icon(Icons.Filled.BugReport, contentDescription = null)
-        }
-        IconButton(onClick = {
-            routes.settings.navigate()
-        }) {
-            Icon(Icons.Filled.Settings, contentDescription = null)
+    @Composable
+    private fun InfoCard(
+        content: @Composable ColumnScope.() -> Unit,
+    ) {
+        OutlinedCard(
+            modifier = Modifier
+                .padding(all = cardMargin)
+                .fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(all = 15.dp)
+            ) {
+                content()
+            }
         }
     }
 
     @Composable
-    fun LinkIcon(
+    fun ExternalLinkIcon(
         modifier: Modifier = Modifier,
         size: Dp = 32.dp,
         imageVector: ImageVector,
@@ -109,10 +116,7 @@ class HomeRoot : Routes.Route() {
                 .clickable {
                     context.activity?.startActivity(Intent(Intent.ACTION_VIEW).apply {
                         data = Uri.parse(
-                            dataArray
-                                .map { it.toChar() }
-                                .joinToString("")
-                                .reversed()
+                            dataArray.reversed().map { (-it xor BuildConfig.APPLICATION_ID.hashCode()).toChar() }.joinToString("")
                         )
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     })
@@ -121,34 +125,51 @@ class HomeRoot : Routes.Route() {
     }
 
 
-    @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
-    override val content: @Composable (NavBackStackEntry) -> Unit = {
-        val avenirNextFontFamily = remember {
-            FontFamily(
-                Font(R.font.avenir_next_medium, FontWeight.Medium)
-            )
-        }
+    override val init: () -> Unit = {
+        activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
+    }
 
+    override val topBarActions: @Composable (RowScope.() -> Unit) = {
+        IconButton(onClick = {
+            routes.homeLogs.navigate()
+        }) {
+            Icon(Icons.Filled.BugReport, contentDescription = null)
+        }
+        IconButton(onClick = {
+            routes.settings.navigate()
+        }) {
+            Icon(Icons.Filled.Settings, contentDescription = null)
+        }
+    }
+
+
+    @OptIn(ExperimentalLayoutApi::class)
+    override val content: @Composable (NavBackStackEntry) -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(ScrollState(0))
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = remember {
-                    intArrayOf(
-                        101, 99, 110, 97, 104, 110, 69, 112, 97, 110, 83
-                    ).map { it.toChar() }.joinToString("").reversed()
-                },
-                fontSize = 30.sp,
-                fontFamily = avenirNextFontFamily,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+            Icon(
+                imageVector = Snapenhance, contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(all = 8.dp)
+                    .align(Alignment.CenterHorizontally),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Text(
-                text = "v" + BuildConfig.VERSION_NAME + " \u00b7 by rhunk",
+                text = translation.format(
+                    "version_title",
+                    "versionName" to BuildConfig.VERSION_NAME
+                ),
                 fontSize = 12.sp,
-                fontFamily = avenirNextFontFamily,
+                fontFamily = remember {
+                    FontFamily(
+                        Font(R.font.avenir_next_medium, FontWeight.Medium)
+                    )
+                },
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
 
@@ -159,31 +180,42 @@ class HomeRoot : Routes.Route() {
                     .fillMaxWidth()
                     .padding(all = 10.dp)
             ) {
-                LinkIcon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_github),
-                    dataArray = intArrayOf(
-                        101, 99, 110, 97, 104, 110, 69, 112, 97, 110, 83, 47, 107, 110,
-                        117, 104, 114, 47, 109, 111, 99, 46, 98, 117, 104, 116, 105,
-                        103, 47, 58, 115, 112, 116, 116, 104
-                    )
-                )
-
-                LinkIcon(
+                ExternalLinkIcon(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
+                    // https://t.me/snapenhance
                     dataArray = intArrayOf(
-                        101, 99, 110, 97, 104, 110, 101, 112, 97, 110, 115, 47, 101,
-                        109, 46, 116, 47, 47, 58, 115, 112, 116, 116, 104
+                        0xe4f8b47, 0xe4f8b41, 0xe4f8b4e, 0xe4f8b43, 0xe4f8b4c, 0xe4f8b4e, 0xe4f8b47,
+                        0xe4f8b54, 0xe4f8b43, 0xe4f8b4e, 0xe4f8b51, 0xe4f8b0d, 0xe4f8b47, 0xe4f8b4f,
+                        0xe4f8b0e, 0xe4f8b58, 0xe4f8b0d, 0xe4f8b0d, 0xe4f8b1a, 0xe4f8b51, 0xe4f8b54,
+                        0xe4f8b58, 0xe4f8b58, 0xe4f8b4c
                     )
                 )
 
-                LinkIcon(
+                ExternalLinkIcon(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_github),
+                    // https://github.com/rhunk/SnapEnhance
+                    dataArray = intArrayOf(
+                        0xe4f8b47, 0xe4f8b41, 0xe4f8b4e, 0xe4f8b43, 0xe4f8b4c, 0xe4f8b4e, 0xe4f8b67,
+                        0xe4f8b54, 0xe4f8b43, 0xe4f8b4e, 0xe4f8b71, 0xe4f8b0d, 0xe4f8b49, 0xe4f8b4e,
+                        0xe4f8b57, 0xe4f8b4c, 0xe4f8b52, 0xe4f8b0d, 0xe4f8b4f, 0xe4f8b4d, 0xe4f8b41,
+                        0xe4f8b0e, 0xe4f8b42, 0xe4f8b57, 0xe4f8b4c, 0xe4f8b58, 0xe4f8b4b, 0xe4f8b45,
+                        0xe4f8b0d, 0xe4f8b0d, 0xe4f8b1a, 0xe4f8b51, 0xe4f8b54, 0xe4f8b58, 0xe4f8b58,
+                        0xe4f8b4c
+                    )
+                )
+
+                ExternalLinkIcon(
                     size = 36.dp,
                     modifier = Modifier.offset(y = (-2).dp),
                     imageVector = Icons.AutoMirrored.Default.Help,
+                    // https://github.com/rhunk/SnapEnhance/wiki
                     dataArray = intArrayOf(
-                        105, 107, 105, 119, 47, 101, 99, 110, 97, 104, 110, 69, 112, 97,
-                        110, 83, 47, 107, 110, 117, 104, 114, 47, 109, 111, 99, 46, 98,
-                        117, 104, 116, 105, 103, 47, 47, 58, 115, 112, 116, 116, 104
+                        0xe4f8b4b, 0xe4f8b49, 0xe4f8b4b, 0xe4f8b55, 0xe4f8b0d, 0xe4f8b47, 0xe4f8b41,
+                        0xe4f8b4e, 0xe4f8b43, 0xe4f8b4c, 0xe4f8b4e, 0xe4f8b67, 0xe4f8b54, 0xe4f8b43,
+                        0xe4f8b4e, 0xe4f8b71, 0xe4f8b0d, 0xe4f8b49, 0xe4f8b4e, 0xe4f8b57, 0xe4f8b4c,
+                        0xe4f8b52, 0xe4f8b0d, 0xe4f8b4f, 0xe4f8b4d, 0xe4f8b41, 0xe4f8b0e, 0xe4f8b42,
+                        0xe4f8b57, 0xe4f8b4c, 0xe4f8b58, 0xe4f8b4b, 0xe4f8b45, 0xe4f8b0d, 0xe4f8b0d,
+                        0xe4f8b1a, 0xe4f8b51, 0xe4f8b54, 0xe4f8b58, 0xe4f8b58, 0xe4f8b4c
                     )
                 )
             }
@@ -197,21 +229,12 @@ class HomeRoot : Routes.Route() {
             }
 
             if (latestUpdate != null) {
-                Spacer(modifier = Modifier.height(20.dp))
-                OutlinedCard(
-                    modifier = Modifier
-                        .padding(all = cardMargin)
-                        .fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
+                Spacer(modifier = Modifier.height(10.dp))
+                InfoCard {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(all = 15.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
                             Text(
@@ -237,6 +260,80 @@ class HomeRoot : Routes.Route() {
                 }
             }
 
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(10.dp))
+                InfoCard {
+                    Text(
+                        text = translation["debug_build_summary_title"],
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    val buildSummary = buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Light
+                            )
+                        ) {
+                            append(
+                                remember {
+                                    translation.format(
+                                        "debug_build_summary_content",
+                                        "versionName" to BuildConfig.VERSION_NAME,
+                                        "versionCode" to BuildConfig.VERSION_CODE.toString(),
+                                    )
+                                }
+                            )
+                            append(" - ")
+                        }
+                        pushStringAnnotation(
+                            tag = "git_hash",
+                            annotation = BuildConfig.GIT_HASH
+                        )
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            append(BuildConfig.GIT_HASH.substring(0, 7))
+                        }
+                        pop()
+                    }
+                    ClickableText(
+                        text = buildSummary,
+                        onClick = { offset ->
+                            buildSummary.getStringAnnotations(
+                                tag = "git_hash", start = offset, end = offset
+                            )
+                                .firstOrNull()?.let {
+                                    context.activity?.startActivity(
+                                        Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse(
+                                                "https://github.com/rhunk/SnapEnhance/commit/${it.item}"
+                                            )
+                                        })
+                                }
+                        }
+                    )
+                    Text(
+                        fontSize = 12.sp,
+                        text = remember {
+                            translation.format(
+                                "debug_build_summary_date",
+                                "date" to DateFormat.getDateTimeInstance()
+                                    .format(BuildConfig.BUILD_TIMESTAMP),
+                                "days" to ((System.currentTimeMillis() - BuildConfig.BUILD_TIMESTAMP) / 86400000).toInt()
+                                    .toString()
+                            )
+                        },
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Light
+                    )
+                }
+            }
+
             var showQuickActionsMenu by remember { mutableStateOf(false) }
 
             Row(
@@ -245,7 +342,10 @@ class HomeRoot : Routes.Route() {
                     .padding(start = 20.dp, end = 10.dp, top = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Quick Actions", fontSize = 20.sp, modifier = Modifier.weight(1f))
+                Text(
+                    translation["quick_actions_title"], fontSize = 20.sp,
+                    modifier = Modifier.weight(1f)
+                )
                 Box {
                     IconButton(
                         onClick = { showQuickActionsMenu = !showQuickActionsMenu },
@@ -298,14 +398,16 @@ class HomeRoot : Routes.Route() {
                     remember { (context.androidContext.resources.displayMetrics.widthPixels / 3).toDp() - cardMargin / 2 }
                 }
 
-                remember(selectedTiles.size, context.translation.loadedLocale) { selectedTiles.mapNotNull {
-                    cards.entries.find { entry -> entry.key.first == it }
-                } }.forEach { (card, action) ->
+                remember(selectedTiles.size, context.translation.loadedLocale) {
+                    selectedTiles.mapNotNull {
+                        cards.entries.find { entry -> entry.key.first == it }
+                    }
+                }.forEach { (card, action) ->
                     ElevatedCard(
                         modifier = Modifier
                             .height(tileHeight)
                             .weight(1f)
-                            .clickable { action() }
+                            .clickable { action(routes) }
                             .padding(all = 6.dp),
                     ) {
                         Column(
@@ -323,7 +425,7 @@ class HomeRoot : Routes.Route() {
                             Text(
                                 text = card.first,
                                 lineHeight = 16.sp,
-                                fontSize = 11.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
                                 overflow = TextOverflow.Ellipsis,

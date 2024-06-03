@@ -7,10 +7,12 @@ import android.graphics.drawable.shapes.Shape
 import android.os.DeadObjectException
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.rhunk.snapenhance.bridge.logger.BridgeLoggedMessage
 import me.rhunk.snapenhance.common.data.ContentType
 import me.rhunk.snapenhance.common.data.MessageState
 import me.rhunk.snapenhance.common.data.QuotedMessageContentStatus
 import me.rhunk.snapenhance.common.util.ktx.longHashCode
+import me.rhunk.snapenhance.common.util.lazyBridge
 import me.rhunk.snapenhance.common.util.protobuf.ProtoReader
 import me.rhunk.snapenhance.core.event.events.impl.BindViewEvent
 import me.rhunk.snapenhance.core.event.events.impl.BuildMessageEvent
@@ -33,11 +35,14 @@ class MessageLogger : Feature("MessageLogger",
         const val DELETED_MESSAGE_COLOR = 0x6Eb71c1c
     }
 
-    private val loggerInterface by lazy { context.bridgeClient.getMessageLogger() }
+    private val loggerInterface by lazyBridge { context.bridgeClient.getMessageLogger() }
 
     val isEnabled get() = context.config.messaging.messageLogger.globalState == true
 
     private val threadPool = Executors.newFixedThreadPool(10)
+
+    private val usernameCache = EvictingMap<String, String>(500) // user id -> username
+    private val groupTitleCache = EvictingMap<String, String?>(500) // conversation id -> group title
 
     private val cachedIdLinks = EvictingMap<Long, Long>(500) // client id -> server id
     private val fetchedMessages = mutableListOf<Long>() // list of unique message ids
@@ -126,7 +131,21 @@ class MessageLogger : Feature("MessageLogger",
 
                 threadPool.execute {
                     try {
-                        loggerInterface.addMessage(conversationId, uniqueMessageIdentifier, context.gson.toJson(messageInstance).toByteArray(Charsets.UTF_8))
+                        loggerInterface.addMessage(
+                            BridgeLoggedMessage().also {
+                                it.messageId = uniqueMessageIdentifier
+                                it.conversationId = conversationId
+                                it.userId = event.message.senderId.toString()
+                                it.username = usernameCache.getOrPut(it.userId) {
+                                    context.database.getFriendInfo(it.userId)?.mutableUsername ?: it.userId
+                                }
+                                it.sendTimestamp = event.message.messageMetadata?.createdAt ?: System.currentTimeMillis()
+                                it.groupTitle = groupTitleCache.getOrPut(conversationId) {
+                                    context.database.getFeedEntryByConversationId(conversationId)?.feedDisplayName ?: conversationId
+                                }
+                                it.messageData = context.gson.toJson(messageInstance).toByteArray(Charsets.UTF_8)
+                            }
+                        )
                     } catch (ignored: DeadObjectException) {}
                 }
 

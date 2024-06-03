@@ -28,6 +28,7 @@ import me.rhunk.snapenhance.common.bridge.wrapper.LoggerWrapper
 import me.rhunk.snapenhance.common.bridge.wrapper.MappingsWrapper
 import me.rhunk.snapenhance.common.config.ModConfig
 import me.rhunk.snapenhance.common.logger.fatalCrash
+import me.rhunk.snapenhance.common.util.constantLazyBridge
 import me.rhunk.snapenhance.common.util.getPurgeTime
 import me.rhunk.snapenhance.e2ee.E2EEImplementation
 import me.rhunk.snapenhance.scripting.RemoteScriptManager
@@ -38,7 +39,7 @@ import me.rhunk.snapenhance.ui.manager.data.InstallationSummary
 import me.rhunk.snapenhance.ui.manager.data.ModInfo
 import me.rhunk.snapenhance.ui.manager.data.PlatformInfo
 import me.rhunk.snapenhance.ui.manager.data.SnapchatAppInfo
-import me.rhunk.snapenhance.ui.overlay.SettingsOverlay
+import me.rhunk.snapenhance.ui.overlay.RemoteOverlay
 import me.rhunk.snapenhance.ui.setup.Requirements
 import me.rhunk.snapenhance.ui.setup.SetupActivity
 import java.io.ByteArrayInputStream
@@ -61,19 +62,20 @@ class RemoteSideContext(
 
     val sharedPreferences: SharedPreferences get() = androidContext.getSharedPreferences("prefs", 0)
     val fileHandleManager = RemoteFileHandleManager(this)
-    val config = ModConfig(androidContext, fileHandleManager)
-    val translation = LocaleWrapper(fileHandleManager)
-    val mappings = MappingsWrapper(fileHandleManager)
+    val config = ModConfig(androidContext, constantLazyBridge { fileHandleManager })
+    val translation = LocaleWrapper(constantLazyBridge { fileHandleManager })
+    val mappings = MappingsWrapper(constantLazyBridge { fileHandleManager })
     val taskManager = TaskManager(this)
     val database = AppDatabase(this)
     val streaksReminder = StreaksReminder(this)
     val log = LogManager(this)
     val scriptManager = RemoteScriptManager(this)
-    val settingsOverlay = SettingsOverlay(this)
+    val remoteOverlay = RemoteOverlay(this)
     val e2eeImplementation = E2EEImplementation(this)
     val messageLogger by lazy { LoggerWrapper(androidContext) }
     val tracker = RemoteTracker(this)
     val accountStorage = RemoteAccountStorage(this)
+    val locationManager = RemoteLocationManager(this)
 
     //used to load bitmoji selfies and download previews
     val imageLoader by lazy {
@@ -160,6 +162,7 @@ class RemoteSideContext(
                         val cert = certFactory.generateCertificate(ByteArrayInputStream(it.toByteArray())) as X509Certificate
                         cert.issuerDN.toString()
                     } ?: throw Exception("Failed to get certificate info"),
+                gitHash = BuildConfig.GIT_HASH,
                 isDebugBuild = BuildConfig.DEBUG,
                 mappingVersion = mappings.getGeneratedBuildNumber(),
                 mappingsOutdated = mappings.isMappingsOutdated()
@@ -186,7 +189,7 @@ class RemoteSideContext(
         log.debug(message.toString())
     }
 
-    fun hasMessagingBridge() = bridgeService != null && bridgeService?.messagingBridge != null
+    fun hasMessagingBridge() = bridgeService != null && bridgeService?.messagingBridge != null && bridgeService?.messagingBridge?.asBinder()?.pingBinder() == true
 
     fun checkForRequirements(overrideRequirements: Int? = null): Boolean {
         var requirements = overrideRequirements ?: 0
