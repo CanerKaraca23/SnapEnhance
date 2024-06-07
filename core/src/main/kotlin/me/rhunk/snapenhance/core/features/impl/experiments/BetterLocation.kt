@@ -5,13 +5,17 @@ import android.location.LocationManager
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RelativeLayout
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EditLocation
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import me.rhunk.snapenhance.common.ui.OverlayType
 import me.rhunk.snapenhance.common.ui.createComposeView
@@ -22,15 +26,14 @@ import me.rhunk.snapenhance.core.event.events.impl.AddViewEvent
 import me.rhunk.snapenhance.core.event.events.impl.UnaryCallEvent
 import me.rhunk.snapenhance.core.features.Feature
 import me.rhunk.snapenhance.core.features.FeatureLoadParams
-import me.rhunk.snapenhance.core.features.impl.global.SuspendLocationUpdates
 import me.rhunk.snapenhance.core.util.RandomWalking
 import me.rhunk.snapenhance.core.util.hook.HookStage
 import me.rhunk.snapenhance.core.util.hook.hook
 import me.rhunk.snapenhance.core.util.ktx.getId
+import me.rhunk.snapenhance.core.util.ktx.isDarkTheme
 import me.rhunk.snapenhance.mapper.impl.CallbackMapper
 import java.nio.ByteBuffer
 import java.util.UUID
-import kotlin.time.Duration.Companion.days
 
 data class FriendLocation(
     val userId: String,
@@ -86,11 +89,10 @@ class BetterLocation : Feature("Better Location", loadParams = FeatureLoadParams
                     remove(7)
                     addVarInt(7, System.currentTimeMillis()) // timestamp
                 }
+            }
 
-                if (context.feature(SuspendLocationUpdates::class).isSuspended()) {
-                    remove(7)
-                    addVarInt(7, System.currentTimeMillis() - 15.days.inWholeMilliseconds)
-                }
+            if (context.config.global.betterLocation.suspendLocationUpdates.get()) {
+                remove(1)
             }
 
             // SCVSDeviceData
@@ -167,19 +169,18 @@ class BetterLocation : Feature("Better Location", loadParams = FeatureLoadParams
     override fun init() {
         if (context.config.global.betterLocation.globalState != true) return
 
-        if (context.config.global.betterLocation.spoofLocation.get()) {
-            LocationManager::class.java.apply {
-                hook("isProviderEnabled", HookStage.BEFORE) { it.setResult(true) }
-                hook("isProviderEnabledForUser", HookStage.BEFORE) { it.setResult(true) }
-            }
-            Location::class.java.apply {
-                hook("getLatitude", HookStage.BEFORE) { it.setResult(getLat()) }
-                hook("getLongitude", HookStage.BEFORE) { it.setResult(getLong()) }
-            }
+        val canSpoofLocation = { context.config.global.betterLocation.spoofLocation.get() }
+
+        LocationManager::class.java.apply {
+            hook("isProviderEnabled", HookStage.BEFORE, { canSpoofLocation() }) { it.setResult(true) }
+            hook("isProviderEnabledForUser", HookStage.BEFORE, { canSpoofLocation() }) { it.setResult(true) }
+        }
+        Location::class.java.apply {
+            hook("getLatitude", HookStage.BEFORE, { canSpoofLocation() }) { it.setResult(getLat()) }
+            hook("getLongitude", HookStage.BEFORE, { canSpoofLocation() }) { it.setResult(getLong()) }
         }
 
         val mapFeaturesRootId = context.resources.getId("map_features_root")
-        val mapLayerSelectorId = context.resources.getId("map_layer_selector")
 
         context.event.subscribe(AddViewEvent::class) { event ->
             if (event.view.id != mapFeaturesRootId) return@subscribe
@@ -188,16 +189,25 @@ class BetterLocation : Feature("Better Location", loadParams = FeatureLoadParams
             view.addOnAttachStateChangeListener(object: View.OnAttachStateChangeListener {
                 override fun onViewAttachedToWindow(v: View) {
                     view.addView(createComposeView(view.context) {
-                        FilledIconButton(
-                            modifier = Modifier.size(54.dp).padding(8.dp),
-                            onClick = { openManagementOverlay() }
+                        val darkTheme = remember { context.androidContext.isDarkTheme() }
+                        Box(
+                            modifier = Modifier.padding(start = 8.dp)
                         ) {
-                            Icon(Icons.Default.EditLocation, contentDescription = null)
+                            FilledIconButton(
+                                modifier = Modifier.size(40.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (darkTheme) Color(0xFF1D1D1D) else Color.White,
+                                    contentColor = if (darkTheme) Color.White else Color(0xFF151A1A),
+                                ),
+                                onClick = { openManagementOverlay() }
+                            ) {
+                                Icon(Icons.Default.EditLocation, contentDescription = null)
+                            }
                         }
                     }.apply {
                         layoutParams = RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                            addRule(RelativeLayout.BELOW, mapLayerSelectorId)
-                            addRule(RelativeLayout.ALIGN_PARENT_END)
+                            addRule(RelativeLayout.ALIGN_PARENT_LEFT)
+                            setMargins(0, (60 * context.resources.displayMetrics.density).toInt(), 0, 0)
                         }
                     })
                 }
@@ -220,10 +230,10 @@ class BetterLocation : Feature("Better Location", loadParams = FeatureLoadParams
 
         context.mappings.useMapper(CallbackMapper::class) {
             callbacks.getClass("ServerStreamingEventHandler")?.hook("onEvent", HookStage.BEFORE) { param ->
-                val buffer = param.arg<ByteBuffer>(1).let {
+                val buffer = param.argNullable<ByteBuffer>(1)?.let {
                     it.position(0)
                     ByteArray(it.capacity()).also { buffer -> it.get(buffer); it.position(0) }
-                }
+                } ?: return@hook
                 onLocationEvent(ProtoReader(buffer))
             }
         }
