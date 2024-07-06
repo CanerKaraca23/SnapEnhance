@@ -176,7 +176,7 @@ We no longer offer official `LSPatch` binaries for obvious reasons. However, you
 <details>
   <summary>Can I get banned with this?</summary>
   
-  - Obviously, however, the risk is very low, and we have no reported cases of anyone ever getting banned while using the mod.
+  - Obviously, however, the risk is low. SnapEnhance takes no responsibility for any consequences, including but not limited to account bans or suspensions.
 </details>
 
 <details>
