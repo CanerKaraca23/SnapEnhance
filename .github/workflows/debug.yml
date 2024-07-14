@@ -29,33 +29,6 @@ jobs:
       - name: Build
         run: ./gradlew assembleArmv8Debug
 
-      - name: Determine the latest Build Tools version installed
-        shell: bash
-        run: echo "BUILD_TOOL_VERSION=$(ls "$ANDROID_HOME/build-tools/" | tail -n 1)" >> $GITHUB_ENV
-
-      - name: Sign APK
-        id: sign_app
-        uses: SnapEnhance/sign-android-release@master
-        with:
-          releaseDirectory: app/build/outputs/apk/armv8/debug/
-          signingKeyBase64: ${{ secrets.JAVA_KEYSTORE_DATA }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
-
-      - name: Get current build version
-        id: version-env
-        run: |
-          ./gradlew getVersion
-          echo "version=$(cat app/build/version.txt)" >> $GITHUB_ENV
-
-      - name: Delete unsigned APK file and rename the signed one
-        run: |
-          find app/build/outputs/apk/armv8/debug/ -type f ! -name '*-signed*' -delete
-          mv ${{steps.sign_app.outputs.signedReleaseFile}} app/build/outputs/apk/armv8/debug/snapenhance-${{ env.version }}-armv8-${GITHUB_SHA::7}.apk
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
