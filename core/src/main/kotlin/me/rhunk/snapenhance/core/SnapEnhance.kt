@@ -4,7 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.Resources
 import android.os.Build
-import dalvik.system.BaseDexClassLoader
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,6 +15,9 @@ import me.rhunk.snapenhance.bridge.SyncCallback
 import me.rhunk.snapenhance.common.Constants
 import me.rhunk.snapenhance.common.ReceiversConfig
 import me.rhunk.snapenhance.common.action.EnumAction
+import me.rhunk.snapenhance.common.bridge.FileHandleScope
+import me.rhunk.snapenhance.common.bridge.InternalFileHandleType
+import me.rhunk.snapenhance.common.bridge.toWrapper
 import me.rhunk.snapenhance.common.data.FriendStreaks
 import me.rhunk.snapenhance.common.data.MessagingFriendInfo
 import me.rhunk.snapenhance.common.data.MessagingGroupInfo
@@ -27,7 +31,6 @@ import me.rhunk.snapenhance.core.util.LSPatchUpdater
 import me.rhunk.snapenhance.core.util.hook.HookAdapter
 import me.rhunk.snapenhance.core.util.hook.HookStage
 import me.rhunk.snapenhance.core.util.hook.hook
-import me.rhunk.snapenhance.core.util.hook.hookConstructor
 import kotlin.reflect.KClass
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
@@ -106,7 +109,7 @@ class SnapEnhance {
                     appContext.mainActivity = this
                     if (!appContext.mappings.isMappingsLoaded) return@hookMainActivity
                     appContext.isMainActivityPaused = false
-                    onActivityCreate()
+                    onActivityCreate(this)
                     appContext.actionManager.onNewIntent(intent)
                 }
 
@@ -166,13 +169,19 @@ class SnapEnhance {
         }
     }
 
-    private fun onActivityCreate() {
+    private var safeMode = false
+
+    private fun onActivityCreate(activity: Activity) {
         measureTimeMillis {
             with(appContext) {
-                features.onActivityCreate()
-                inAppOverlay.onActivityCreate(mainActivity!!)
-                scriptRuntime.eachModule { callFunction("module.onSnapMainActivityCreate", mainActivity!!) }
+                features.onActivityCreate(activity)
+                inAppOverlay.onActivityCreate(activity)
+                scriptRuntime.eachModule { callFunction("module.onSnapMainActivityCreate", activity) }
                 actionManager.onActivityCreate()
+
+                if (safeMode) {
+                    appContext.inAppOverlay.showStatusToast(Icons.Outlined.Cancel, "Failed to load security features! Snapchat may not work properly.", durationMs = 5000)
+                }
             }
         }.also { time ->
             appContext.log.verbose("onActivityCreate took $time")
@@ -180,36 +189,58 @@ class SnapEnhance {
     }
 
     private fun initNative() {
-        // don't initialize native when not logged in
-        if (
-            !appContext.isLoggedIn() &&
-            appContext.bridgeClient.getDebugProp("force_native_load", null) != "true"
-        ) return
-        if (appContext.config.experimental.nativeHooks.globalState != true) return
+        val lateInit = appContext.native.initOnce {
+            nativeUnaryCallCallback = { request ->
+                appContext.event.post(NativeUnaryCallEvent(request.uri, request.buffer)) {
+                    request.buffer = buffer
+                    request.canceled = canceled
+                }
+            }
+            appContext.reloadNativeConfig()
+        }
 
-        lateinit var unhook: () -> Unit
+        if (appContext.bridgeClient.getDebugProp("disable_sif", "false") != "true") {
+            runCatching {
+                appContext.native.loadSharedLibrary(
+                    appContext.fileHandlerManager.getFileHandle(FileHandleScope.INTERNAL.key, InternalFileHandleType.SIF.key)
+                        .toWrapper()
+                        .readBytes()
+                        .takeIf {
+                            it.isNotEmpty()
+                        } ?: throw IllegalStateException("buffer is empty")
+                )
+                appContext.log.verbose("loaded sif")
+            }.onFailure {
+                safeMode = true
+                appContext.log.error("Failed to load sif", it)
+            }
+        } else {
+            appContext.log.warn("sif is disabled")
+        }
+
         Runtime::class.java.declaredMethods.first {
             it.name == "loadLibrary0" && it.parameterTypes.contentEquals(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) arrayOf(Class::class.java, String::class.java)
                 else arrayOf(ClassLoader::class.java, String::class.java)
             )
-        }.hook(HookStage.AFTER) { param ->
-            val libName = param.arg<String>(1)
-            if (libName != "client") return@hook
-            unhook()
-            appContext.native.initOnce {
-                nativeUnaryCallCallback = { request ->
-                    appContext.event.post(NativeUnaryCallEvent(request.uri, request.buffer)) {
-                        request.buffer = buffer
-                        request.canceled = canceled
-                    }
+        }.apply {
+            if (safeMode) {
+                hook(HookStage.BEFORE) { param ->
+                    if (param.arg<String>(1) != "scplugin") return@hook
+                    appContext.log.warn("Can't load scplugin in safe mode")
+                    Thread.sleep(Long.MAX_VALUE)
                 }
-                appContext.reloadNativeConfig()
             }
-            BaseDexClassLoader::class.java.hookConstructor(HookStage.AFTER) {
-                appContext.native.hideAnonymousDexFiles()
-            }
-        }.also { unhook = { it.unhook() } }
+
+            lateinit var unhook: () -> Unit
+            hook(HookStage.AFTER) { param ->
+                val libName = param.arg<String>(1)
+                if (libName != "client") return@hook
+                unhook()
+                appContext.log.verbose("libclient lateInit")
+                lateInit()
+            }.also { unhook = { it.unhook() } }
+        }
     }
 
     private fun initConfigListener() {
