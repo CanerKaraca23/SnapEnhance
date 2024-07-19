@@ -113,7 +113,7 @@ class ModConfig(
         val oldConfig = runCatching { fileWrapper.readBytes().toString(Charsets.UTF_8) }.getOrNull()
         fileWrapper.writeBytes(exportToString(config = config).toByteArray(Charsets.UTF_8))
 
-        configStateListener?.also {
+        configStateListener?.takeIf { it.asBinder().pingBinder() }?.also {
             runCatching {
                 compareDiff(createRootConfig().apply {
                     fromJson(gson.fromJson(oldConfig ?: return@runCatching, JsonObject::class.java))

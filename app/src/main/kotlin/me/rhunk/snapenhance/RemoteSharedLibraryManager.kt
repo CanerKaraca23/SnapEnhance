@@ -1,5 +1,6 @@
 package me.rhunk.snapenhance
 
+import android.annotation.SuppressLint
 import android.os.Build
 import me.rhunk.snapenhance.common.bridge.InternalFileHandleType
 import okhttp3.OkHttpClient
@@ -49,6 +50,7 @@ class RemoteSharedLibraryManager(
         return false
     }
 
+    @SuppressLint("ApplySharedPref")
     fun init() {
         val libraryFile = InternalFileHandleType.SIF.resolve(remoteSideContext.androidContext)
         val currentVersion = remoteSideContext.sharedPreferences.getString("sif", null)?.trim()
@@ -72,7 +74,9 @@ class RemoteSharedLibraryManager(
             remoteSideContext.sharedPreferences.edit().putString("sif", latestVersion).commit()
             remoteSideContext.shortToast("SIF updated to $latestVersion!")
             // force restart snapchat
-            remoteSideContext.bridgeService?.stopSelf()
+            runCatching {
+                remoteSideContext.config.configStateListener?.takeIf { it.asBinder().pingBinder() }?.onRestartRequired()
+            }
         } else {
             remoteSideContext.log.warn("Failed to download latest sif")
         }

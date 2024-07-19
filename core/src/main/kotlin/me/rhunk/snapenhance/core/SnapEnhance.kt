@@ -180,7 +180,11 @@ class SnapEnhance {
                 actionManager.onActivityCreate()
 
                 if (safeMode) {
-                    appContext.inAppOverlay.showStatusToast(Icons.Outlined.Cancel, "Failed to load security features! Snapchat may not work properly.", durationMs = 5000)
+                    appContext.inAppOverlay.showStatusToast(
+                        Icons.Outlined.Cancel,
+                        "Failed to load security features! Snapchat may not work properly.",
+                        durationMs = 3000
+                    )
                 }
             }
         }.also { time ->
@@ -227,15 +231,20 @@ class SnapEnhance {
             if (safeMode) {
                 hook(HookStage.BEFORE) { param ->
                     if (param.arg<String>(1) != "scplugin") return@hook
+                    param.setResult(null)
                     appContext.log.warn("Can't load scplugin in safe mode")
-                    Thread.sleep(Long.MAX_VALUE)
+                    runCatching {
+                        Thread.sleep(Long.MAX_VALUE)
+                    }.onFailure {
+                        appContext.log.error(it)
+                    }
+                    exitProcess(1)
                 }
             }
 
             lateinit var unhook: () -> Unit
             hook(HookStage.AFTER) { param ->
-                val libName = param.arg<String>(1)
-                if (libName != "client") return@hook
+                if (param.arg<String>(1) != "client") return@hook
                 unhook()
                 appContext.log.verbose("libclient lateInit")
                 lateInit()
