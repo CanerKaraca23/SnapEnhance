@@ -152,9 +152,9 @@ checksum = "4cdffdeaa52be950db80677f22f549050675f226b77e97fdbe10bb2dd846ac7b"
 
 [[package]]
 name = "env_filter"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6dc8c8ff84895b051f07a0e65f975cf225131742531338752abfb324e4449ff"
+checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
 dependencies = [
  "log",
  "regex",
