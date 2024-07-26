@@ -4,10 +4,6 @@ updates:
     directory: /
     schedule:
       interval: daily
-    groups:
-      actions:
-        patterns:
-          - *
   - package-ecosystem: cargo
     directory: native/rust
     schedule:
@@ -17,20 +13,12 @@ updates:
     groups:
       crates:
         patterns:
-          - *
+          - "*"
   - package-ecosystem: gradle
     directory: /
     schedule:
       interval: daily
-    groups:
-      maven:
-        patterns:
-          - *
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: daily
-    groups:
-      npm:
-        patterns:
-          - *
