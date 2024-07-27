@@ -13,7 +13,7 @@ mod modules;
 
 use android_logger::Config;
 use log::LevelFilter;
-use modules::{composer_hook, duplex_hook, fstat_hook, linker_hook, sqlite_hook, unary_call_hook};
+use modules::{composer_hook, custom_font_hook, duplex_hook, fstat_hook, linker_hook, sqlite_hook, unary_call_hook};
 
 use jni::objects::{JObject, JString};
 use jni::sys::{jint, jstring, JNI_VERSION_1_6};
@@ -67,7 +67,8 @@ fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
         unary_call_hook::init(),
         composer_hook::init(),
         fstat_hook::init(),
-        sqlite_hook::init()
+        sqlite_hook::init(),
+        custom_font_hook::init()
     );
     
     threads.into_iter().for_each(|t| t.join().unwrap());
