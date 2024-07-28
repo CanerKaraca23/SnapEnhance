@@ -15,7 +15,7 @@ abstract class Feature(
             runCatching {
                 block()
             }.onFailure {
-                context.log.error("Failed to run onNextActivityCreate callback", it)
+                context.log.error("Failed to run defer callback", it)
             }
         }
     }
