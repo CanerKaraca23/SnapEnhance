@@ -24,7 +24,10 @@ use std::ffi::c_void;
 use std::thread::JoinHandle;
 
 fn pre_init() {
+    debug!("Pre init");
     linker_hook::init();
+    custom_font_hook::init();
+    fstat_hook::init();
 }
 
 fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
@@ -66,9 +69,7 @@ fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
         duplex_hook::init(),
         unary_call_hook::init(),
         composer_hook::init(),
-        fstat_hook::init(),
-        sqlite_hook::init(),
-        custom_font_hook::init()
+        sqlite_hook::init()
     );
     
     threads.into_iter().for_each(|t| t.join().unwrap());
@@ -109,6 +110,11 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
         native_lib_class,
         &[
             NativeMethod {
+                name: "preInit".into(),
+                sig: "()V".into(),
+                fn_ptr: pre_init as *mut c_void,
+            },
+            NativeMethod {
                 name: "init".into(),
                 sig: "(Ljava/lang/String;)Ljava/lang/String;".into(),
                 fn_ptr: init as *mut c_void,
@@ -140,8 +146,6 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
             }
         ]
     ).expect("Failed to register native methods");
-
-    pre_init();
 
     JNI_VERSION_1_6
 }
