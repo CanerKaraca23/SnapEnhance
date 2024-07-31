@@ -9,7 +9,6 @@ val nativeName = rootProject.ext.get("buildHash")
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".nativelib"
     compileSdk = 34
-
     buildToolsVersion = "34.0.0"
     ndkVersion = "26.3.11579264"
 
@@ -23,12 +22,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 }
 
