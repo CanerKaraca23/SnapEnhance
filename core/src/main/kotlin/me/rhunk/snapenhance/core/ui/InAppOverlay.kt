@@ -40,6 +40,8 @@ import me.rhunk.snapenhance.core.util.ktx.isDarkTheme
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
+typealias CustomComposable = @Composable BoxScope.() -> Unit
+
 class InAppOverlay(
     private val context: ModContext
 ) {
@@ -113,6 +115,7 @@ class InAppOverlay(
     }
 
     private val toasts = mutableStateListOf<Toast>()
+    private val customComposables = mutableStateListOf<CustomComposable>()
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
@@ -180,6 +183,10 @@ class InAppOverlay(
                     }
                 }
             }
+
+            customComposables.forEach {
+                it()
+            }
         }
     }
 
@@ -202,6 +209,14 @@ class InAppOverlay(
 
     fun onActivityCreate(activity: Activity) {
         injectOverlay(activity)
+    }
+
+    fun addCustomComposable(composable: CustomComposable) {
+        customComposables.add(composable)
+    }
+
+    fun removeCustomComposable(composable: CustomComposable) {
+        customComposables.remove(composable)
     }
 
     @Composable
