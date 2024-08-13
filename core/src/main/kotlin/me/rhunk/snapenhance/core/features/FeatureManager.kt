@@ -135,7 +135,7 @@ class FeatureManager(
             ContextMenuFix(),
             DisableTelecomFramework(),
             BetterTranscript(),
-            VoiceNoteAutoPlay(),
+            VoiceNoteOverride(),
         )
 
         features.values.toList().forEach { feature ->

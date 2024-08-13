@@ -248,7 +248,7 @@ class InAppOverlay(
         showToast(
             icon = { Icon(icon, contentDescription = "icon", modifier = Modifier.size(32.dp)) },
             text = {
-                Text(text, modifier = Modifier.fillMaxWidth(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(text, modifier = Modifier.fillMaxWidth(), maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp, fontSize = 15.sp)
             },
             durationMs = durationMs,
             showDuration = showDuration
