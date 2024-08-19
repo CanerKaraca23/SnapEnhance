@@ -286,7 +286,7 @@ class HomeRootSection : Routes.Route() {
                             buildSummary.getStringAnnotations(
                                 tag = "git_hash", start = offset, end = offset
                             ).firstOrNull()?.let {
-                                openExternalLink("https://github.com/rhunk/SnapEnhance/commit/${it.item}")
+                                openExternalLink("https://codeberg.org/SnapEnhance/SnapEnhance/commit/${it.item}")
                             }
                         }
                     )
