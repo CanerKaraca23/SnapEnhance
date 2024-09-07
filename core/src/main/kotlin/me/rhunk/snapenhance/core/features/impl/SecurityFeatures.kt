@@ -1,23 +1,19 @@
 package me.rhunk.snapenhance.core.features.impl
 
+import android.annotation.SuppressLint
 import android.system.Os
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import android.widget.TextView
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rhunk.snapenhance.common.util.protobuf.ProtoEditor
 import me.rhunk.snapenhance.common.util.protobuf.ProtoReader
 import me.rhunk.snapenhance.core.event.events.impl.UnaryCallEvent
 import me.rhunk.snapenhance.core.features.Feature
+import me.rhunk.snapenhance.core.util.ktx.getId
 import me.rhunk.snapenhance.core.util.ktx.setObjectField
 import java.io.FileDescriptor
 
@@ -32,6 +28,7 @@ class SecurityFeatures : Feature("Security Features") {
         transact(this, 0)?.toString(2)?.padStart(32, '0')?.count { it == '1' }
     }
 
+    @SuppressLint("SetTextI18n")
     override fun init() {
         token // pre init token
 
@@ -74,41 +71,29 @@ class SecurityFeatures : Feature("Security Features") {
             }
         }
 
-        context.inAppOverlay.addCustomComposable {
-            var statusText by remember {
-                mutableStateOf("")
-            }
-            var textColor by remember {
-                mutableStateOf(Color.Red)
-            }
+        val hovaPageTitleId = context.resources.getId("hova_page_title")
 
-            LaunchedEffect(Unit) {
-                withContext(Dispatchers.IO) {
-                    while (true) {
-                        val status = getStatus()
-                        withContext(Dispatchers.Main) {
-                            if (status == null || status == 0) {
-                                textColor = Color.Red
-                                statusText = "SIF not loaded!"
-                            } else {
-                                textColor = Color.Green
-                                statusText = "SIF = $status"
-                            }
-                        }
-                        delay(1000)
+        fun findHovaPageTitle(): TextView? {
+            return context.mainActivity?.findViewById(hovaPageTitleId)
+        }
+
+        context.coroutineScope.launch {
+            while (true) {
+                val status = getStatus()
+                withContext(Dispatchers.Main) {
+                    val textView = findHovaPageTitle() ?: return@withContext
+                    if (status == null || status == 0) {
+                        textView.text = "SIF not loaded"
+                        textView.textSize = 13F
+                        textView.setTextColor(Color.Red.toArgb())
+                    } else {
+                        textView.setTextColor(Color.Green.toArgb())
+                        val prefix = textView.text.toString().substringBeforeLast(" (")
+                        textView.text = "$prefix (${status})"
                     }
                 }
+                delay(1000)
             }
-
-            Text(
-                text = statusText,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black, shape = RoundedCornerShape(5.dp))
-                    .padding(3.dp),
-                fontSize = 10.sp,
-                color = textColor
-            )
         }
     }
 }
