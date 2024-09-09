@@ -209,9 +209,7 @@ class HomeRootSection : Routes.Route() {
                 context.database.getQuickTiles()
             }
 
-            val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
-                if (!BuildConfig.DEBUG) Updater.latestRelease else null
-            }
+            val latestUpdate by rememberAsyncMutableState(defaultValue = null) { Updater.latestRelease }
 
             if (latestUpdate != null) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -228,15 +226,21 @@ class HomeRootSection : Routes.Route() {
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                fontSize = 12.sp, text = translation.format(
+                                fontSize = 12.sp,
+                                text = translation.format(
                                     "update_content",
                                     "version" to (latestUpdate?.versionName ?: "unknown")
-                                ), lineHeight = 20.sp
+                                ),
+                                lineHeight = 20.sp,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        Button(onClick = {
-                            latestUpdate?.releaseUrl?.let { openExternalLink(it) }
-                        }, modifier = Modifier.height(40.dp)) {
+                        Button(
+                            modifier = Modifier.height(40.dp),
+                            onClick = {
+                                latestUpdate?.releaseUrl?.let { openExternalLink(it) }
+                            }
+                        ) {
                             Text(text = translation["update_button"])
                         }
                     }

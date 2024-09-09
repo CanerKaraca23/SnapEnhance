@@ -73,6 +73,6 @@ object LSPatchUpdater {
 
         context.longToast("SnapEnhance updated!")
         context.log.verbose("updated", TAG)
-        context.forceCloseApp()
+        context.softRestartApp()
     }
 }
