@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".mapper"
-    compileSdk = 35
+    compileSdk = 34
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
