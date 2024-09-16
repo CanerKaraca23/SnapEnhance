@@ -8,8 +8,7 @@ val nativeName = rootProject.ext.get("buildHash")
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".nativelib"
-    compileSdk = 34
-    buildToolsVersion = "34.0.0"
+    compileSdk = 35
     ndkVersion = "27.1.12297006"
 
     buildFeatures {
