@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".manager"
-    compileSdk = 35
+    compileSdk = 34
 
     androidResources {
         noCompress += ".so"
