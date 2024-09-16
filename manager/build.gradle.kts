@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".manager"
-    compileSdk = 34
+    compileSdk = 35
 
     androidResources {
         noCompress += ".so"
@@ -26,7 +26,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         multiDexEnabled = true
     }
 
