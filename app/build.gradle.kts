@@ -14,7 +14,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString()
-    compileSdk = 34
+    compileSdk = 35
 
     buildFeatures {
         aidl = true
@@ -26,7 +26,7 @@ android {
         versionCode = rootProject.ext["appVersionCode"].toString().toInt()
         versionName = rootProject.ext["appVersionName"].toString()
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         multiDexEnabled = true
     }
 
