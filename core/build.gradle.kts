@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".core"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 28
