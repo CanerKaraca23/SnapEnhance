@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = rootProject.ext["applicationId"].toString() + ".common"
-    compileSdk = 34
+    compileSdk = 35
 
     buildFeatures {
         aidl = true
