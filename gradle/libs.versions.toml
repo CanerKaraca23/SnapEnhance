@@ -1,5 +1,5 @@
 [versions]
-agp = "8.6.1"
+agp = "8.7.0"
 colorpicker-compose = "1.0.8"
 libsu = "6.0.0"
 guava = "33.3.0-jre"
