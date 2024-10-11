@@ -7,17 +7,10 @@ import me.rhunk.snapenhance.core.ui.menu.AbstractMenu
 import me.rhunk.snapenhance.core.util.hook.HookStage
 import me.rhunk.snapenhance.core.util.hook.hook
 import me.rhunk.snapenhance.core.util.ktx.getId
-import me.rhunk.snapenhance.core.util.ktx.getIdentifier
 
 class SettingsMenu : AbstractMenu() {
     private val hovaHeaderSearchIconId by lazy {
         context.resources.getId("hova_header_search_icon")
-    }
-
-    private val ngsChatLabel by lazy {
-        context.resources.run {
-            getString(getIdentifier("ngs_chat_label", "string"))
-        }
     }
 
     override fun init() {
@@ -28,10 +21,6 @@ class SettingsMenu : AbstractMenu() {
                     view.setOnClickListener {
                         context.bridgeClient.openOverlay(OverlayType.SETTINGS)
                     }
-                }
-
-                if (param.argNullable<String>(0) == ngsChatLabel) {
-                    param.setArg(0, "SnapEnhance")
                 }
             }
         }
